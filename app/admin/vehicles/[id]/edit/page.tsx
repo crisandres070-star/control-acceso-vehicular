@@ -7,6 +7,19 @@ import { requireRole } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getQueryStringValue } from "@/lib/utils";
 
+type EditableVehicle = {
+    id: number;
+    name: string;
+    licensePlate: string;
+    codigoInterno: string;
+    rut: string;
+    vehicleType: string;
+    brand: string;
+    company: string;
+    accessStatus: string;
+    createdAt: Date;
+};
+
 type EditVehiclePageProps = {
     params: {
         id: string;
@@ -25,7 +38,8 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
         notFound();
     }
 
-    const vehicle = await prisma.vehicle.findUnique({ where: { id } });
+    const vehicleRecord = await prisma.vehicle.findUnique({ where: { id } });
+    const vehicle = vehicleRecord as EditableVehicle | null;
 
     if (!vehicle) {
         notFound();
@@ -73,6 +87,8 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                         <p className="mt-3 text-xl font-semibold text-slate-950">{vehicle.name}</p>
                         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Código interno</p>
                         <p className="mt-2 font-semibold tracking-[0.18em] text-slate-700">{vehicle.codigoInterno}</p>
+                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">RUT</p>
+                        <p className="mt-2 font-semibold tracking-[0.12em] text-slate-700">{vehicle.rut}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
                             Registro asociado a {vehicle.company} para control y seguimiento administrativo.
                         </p>
@@ -113,6 +129,7 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                     name: vehicle.name,
                     licensePlate: vehicle.licensePlate,
                     codigoInterno: vehicle.codigoInterno,
+                    rut: vehicle.rut,
                     vehicleType: vehicle.vehicleType,
                     brand: vehicle.brand,
                     company: vehicle.company,

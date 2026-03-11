@@ -9,7 +9,7 @@
 - [x] Ensure Documentation is Complete.
 
 Project notes:
-- Stack: Next.js 14, Tailwind CSS, Prisma ORM, SQLite.
+- Stack: Next.js 14, Tailwind CSS, Prisma ORM, PostgreSQL.
 - Roles: ADMIN and USER (security guard).
 - Auth: credential-based login backed by environment variables and signed cookie sessions.
 - Main commands: npm install, npm run db:push, npm run db:seed, npm run dev, npm run build.

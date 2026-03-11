@@ -7,12 +7,19 @@ import { redirect } from "next/navigation";
 import { requireRole } from "@/lib/auth";
 import type { AccessDecision } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
-import { isAlphanumericCode, normalizeInternalCode, normalizeLicensePlate } from "@/lib/utils";
+import {
+    isAlphanumericCode,
+    isValidRut,
+    normalizeInternalCode,
+    normalizeLicensePlate,
+    normalizeRut,
+} from "@/lib/utils";
 
 type VehicleInput = {
     name: string;
     licensePlate: string;
     codigoInterno: string;
+    rut: string;
     vehicleType: string;
     brand: string;
     company: string;
@@ -27,6 +34,7 @@ function parseVehicleInput(formData: FormData): VehicleInput {
     const codigoInterno = normalizeInternalCode(
         String(formData.get("codigoInterno") ?? ""),
     );
+    const rut = normalizeRut(String(formData.get("rut") ?? ""));
     const vehicleType = String(formData.get("vehicleType") ?? "").trim();
     const brand = String(formData.get("brand") ?? "").trim();
     const company = String(formData.get("company") ?? "").trim();
@@ -34,7 +42,7 @@ function parseVehicleInput(formData: FormData): VehicleInput {
     const accessStatus: AccessDecision =
         accessStatusInput === "YES" ? "YES" : "NO";
 
-    if (!name || !licensePlate || !codigoInterno || !vehicleType || !brand || !company) {
+    if (!name || !licensePlate || !codigoInterno || !rut || !vehicleType || !brand || !company) {
         throw new Error("Todos los campos del vehículo son obligatorios.");
     }
 
@@ -42,10 +50,15 @@ function parseVehicleInput(formData: FormData): VehicleInput {
         throw new Error("El Código interno solo puede contener letras y números.");
     }
 
+    if (!isValidRut(rut)) {
+        throw new Error("El RUT debe tener el formato 12345678-9 o 12345678-K.");
+    }
+
     return {
         name,
         licensePlate,
         codigoInterno,
+        rut,
         vehicleType,
         brand,
         company,
@@ -55,7 +68,19 @@ function parseVehicleInput(formData: FormData): VehicleInput {
 
 function getActionErrorMessage(error: unknown) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        return "Ya existe un vehiculo con esa patente.";
+        const target = Array.isArray(error.meta?.target)
+            ? error.meta?.target.join(",")
+            : String(error.meta?.target ?? "");
+
+        if (target.includes("rut")) {
+            return "Ya existe un vehiculo con ese RUT.";
+        }
+
+        if (target.includes("licensePlate") || target.includes("license_plate")) {
+            return "Ya existe un vehiculo con esa patente.";
+        }
+
+        return "Ya existe un vehiculo con un dato unico duplicado.";
     }
 
     if (error instanceof Error) {

@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -12,6 +12,7 @@ model Vehicle {
   name          String
   licensePlate  String   @unique @map("license_plate")
   codigoInterno String   @default("PENDIENTE") @map("codigo_interno")
+  rut           String   @unique
   vehicleType   String   @map("vehicle_type")
   brand         String
   company       String
@@ -22,12 +23,12 @@ model Vehicle {
 }
 
 model AccessLog {
-  id           Int      @id @default(autoincrement())
-  licensePlate String   @map("license_plate")
+  id            Int      @id @default(autoincrement())
+  licensePlate  String   @map("license_plate")
   codigoInterno String? @map("codigo_interno")
-  name         String
-  result       String
-  createdAt    DateTime @default(now()) @map("created_at")
+  name          String
+  result        String
+  createdAt     DateTime @default(now()) @map("created_at")
 
   @@index([licensePlate])
   @@map("access_logs")

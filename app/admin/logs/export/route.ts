@@ -5,6 +5,20 @@ import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { buildCreatedAtFilter, normalizeLicensePlate, parseDateInput } from "@/lib/utils";
 
+type AccessLogExportRow = {
+    id: number;
+    licensePlate: string;
+    codigoInterno: string | null;
+    name: string;
+    result: string;
+    createdAt: Date;
+};
+
+type VehicleRutLookup = {
+    licensePlate: string;
+    rut: string;
+};
+
 function escapeCsv(value: string | null | undefined) {
     return `"${String(value ?? "").replace(/"/g, '""')}"`;
 }
@@ -35,16 +49,32 @@ export async function GET(request: Request) {
 
     const whereInput = Object.keys(where).length > 0 ? where : undefined;
 
-    const logs = await prisma.accessLog.findMany({
+    const logRecords = await prisma.accessLog.findMany({
         where: whereInput,
         orderBy: { createdAt: "desc" },
     });
+    const logs = logRecords as AccessLogExportRow[];
+    const uniquePlates = Array.from(new Set(logs.map((log) => log.licensePlate)));
+    const vehicleRutRecords = uniquePlates.length > 0
+        ? await prisma.vehicle.findMany({
+            where: { licensePlate: { in: uniquePlates } },
+            select: {
+                licensePlate: true,
+                rut: true,
+            },
+        })
+        : [];
+    const vehicleRuts = vehicleRutRecords as VehicleRutLookup[];
+    const rutByPlate = new Map(
+        vehicleRuts.map((vehicle) => [vehicle.licensePlate, vehicle.rut]),
+    );
 
     const rows = logs.map((log) =>
         [
             String(log.id),
             log.licensePlate,
             log.codigoInterno,
+            rutByPlate.get(log.licensePlate) ?? "",
             log.name,
             log.result === "YES" ? "GRANTED" : "DENIED",
             log.createdAt.toISOString(),
@@ -53,7 +83,7 @@ export async function GET(request: Request) {
             .join(","),
     );
 
-    const csv = ["id,license_plate,codigo_interno,name,result,created_at", ...rows].join("\n");
+    const csv = ["id,license_plate,codigo_interno,rut,name,result,created_at", ...rows].join("\n");
     const suffixParts = [
         plate,
         startDate ? `from-${startDate}` : "",

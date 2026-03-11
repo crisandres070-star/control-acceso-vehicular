@@ -70,6 +70,21 @@ export function AdminSidebarNav() {
 
     return (
         <div>
+            <div className="mb-5 flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+                <img
+                    alt="Verix"
+                    className="h-10 w-auto"
+                    height={40}
+                    loading="eager"
+                    src="/logo/verix-horizontal.png"
+                    width={150}
+                />
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-950">Control de acceso de vehículos</p>
+                    <p className="mt-1 text-xs text-slate-500">Panel operativo y navegación principal</p>
+                </div>
+            </div>
+
             <p className="px-2 text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
                 Navegacion
             </p>

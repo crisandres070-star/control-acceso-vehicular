@@ -15,9 +15,6 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent-700">
                                 Centro operativo
                             </p>
-                            <h1 className="mt-3 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950">
-                                Control de acceso de vehiculos
-                            </h1>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
                                 Gestion, trazabilidad y exportacion con una interfaz clara y consistente para operacion diaria.
                             </p>
@@ -42,39 +39,33 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                     </aside>
 
                     <div className="min-w-0 bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(248,250,252,0.96))]">
-                        <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 px-6 py-5 backdrop-blur-xl lg:px-8">
-                            <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-                                <div className="flex items-start gap-4 sm:items-center">
-                                    <div className="flex h-14 w-[150px] shrink-0 items-center">
+                        <header className="sticky top-0 z-20 border-b border-slate-200 bg-white px-6 py-4 lg:px-8">
+                            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div className="flex min-w-0 items-center gap-4">
+                                    <div className="flex h-10 shrink-0 items-center">
                                         <Image
                                             alt="Verix"
-                                            className="h-auto w-[150px]"
-                                            height={48}
+                                            className="h-10 w-auto"
+                                            height={40}
                                             priority
                                             src="/logo/verix-horizontal.png"
                                             width={150}
                                         />
                                     </div>
-                                    <div>
-                                        <p className="text-xs font-semibold uppercase tracking-[0.32em] text-accent-700">
-                                            Panel administrativo
+                                    <div className="min-w-0">
+                                        <p className="truncate font-[family:var(--font-heading)] text-xl font-bold text-slate-950 sm:text-2xl">
+                                            Control de acceso de vehículos
                                         </p>
-                                        <h2 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950">
-                                            Control de acceso de vehiculos
-                                        </h2>
-                                        <p className="mt-2 text-sm leading-6 text-slate-500">
-                                            Operacion centralizada para vehiculos, registros de acceso y formularios de gestion.
+                                        <p className="mt-1 text-sm text-slate-500">
+                                            Panel administrativo
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
                                     <span className="topbar-chip">Rol {session.role}</span>
-                                    <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm">
-                                        {session.username}
-                                    </span>
                                     <form action="/logout" method="post">
-                                        <button className="inline-flex items-center justify-center rounded-2xl bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200" type="submit">
+                                        <button className="inline-flex min-h-[52px] items-center justify-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200" type="submit">
                                             Cerrar sesion
                                         </button>
                                     </form>

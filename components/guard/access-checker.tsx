@@ -9,6 +9,7 @@ type CheckResponse = {
         name: string;
         licensePlate: string;
         codigoInterno: string;
+        rut: string;
         vehicleType: string;
         brand: string;
         company: string;
@@ -98,6 +99,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
             name: formatVehicleValue(result.vehicle.name),
             licensePlate: formatVehicleValue(result.vehicle.licensePlate),
             codigoInterno: formatVehicleValue(result.vehicle.codigoInterno),
+            rut: formatVehicleValue(result.vehicle.rut),
             vehicleType: formatVehicleValue(result.vehicle.vehicleType),
             brand: formatVehicleValue(result.vehicle.brand),
             company: formatVehicleValue(result.vehicle.company),
@@ -106,37 +108,35 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
 
     return (
         <section className="w-full rounded-[36px] border border-white/85 bg-white/95 shadow-[0_32px_90px_rgba(15,23,42,0.14)] xl:max-w-[1380px]">
-            <div className="flex flex-col gap-4 border-b border-slate-200 px-6 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-                <div className="flex items-start gap-4 sm:items-center">
-                    <div className="flex h-14 w-[150px] shrink-0 items-center">
+            <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-6 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
+                <div className="flex min-w-0 items-center gap-4">
+                    <div className="flex h-10 shrink-0 items-center">
                         <Image
                             alt="Verix"
-                            className="h-auto w-[150px]"
-                            height={48}
+                            className="h-10 w-auto"
+                            height={40}
                             priority
                             src="/logo/verix-horizontal.png"
                             width={150}
                         />
                     </div>
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                            Sistema
+                    <div className="min-w-0">
+                        <p className="truncate font-[family:var(--font-heading)] text-xl font-bold text-slate-950 sm:text-2xl">
+                            Control de acceso de vehículos
                         </p>
-                        <h1 className="mt-2 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950 sm:text-3xl">
-                            Control de acceso de vehiculos
-                        </h1>
+                        <p className="mt-1 text-sm text-slate-500">
+                            Validación para portería
+                        </p>
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">
+                    <span className="sr-only">Usuario activo: {username}</span>
                     <span className="inline-flex items-center rounded-full bg-accent-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-accent-700">
                         Rol {roleLabel}
                     </span>
-                    <span className="inline-flex items-center rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                        {username}
-                    </span>
                     <form action="/logout" method="post">
-                        <button className="inline-flex items-center justify-center rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:ring-4 focus:ring-slate-100" type="submit">
+                        <button className="inline-flex min-h-[52px] items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:ring-4 focus:ring-slate-100" type="submit">
                             Cerrar sesion
                         </button>
                     </form>
@@ -163,7 +163,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                             autoCorrect="off"
                             autoFocus
                             autoCapitalize="characters"
-                            className="min-h-[88px] w-full rounded-[30px] border-2 border-slate-200 bg-white px-6 py-5 text-center font-[family:var(--font-heading)] text-4xl uppercase tracking-[0.28em] text-slate-950 shadow-sm transition placeholder:text-slate-300 focus:border-accent-400 focus:ring-4 focus:ring-accent-100 md:text-5xl"
+                            className="min-h-[88px] w-full rounded-xl border-2 border-slate-200 bg-white px-5 py-4 text-center font-[family:var(--font-heading)] text-4xl uppercase tracking-[0.28em] text-slate-950 shadow-sm transition placeholder:text-slate-300 focus:border-accent-400 focus:ring-4 focus:ring-accent-100 md:text-5xl"
                             enterKeyHint="go"
                             id="license-plate"
                             inputMode="text"
@@ -180,7 +180,8 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                         />
 
                         <button
-                            className="inline-flex min-h-[88px] items-center justify-center rounded-[30px] bg-accent-600 px-8 py-6 text-xl font-bold uppercase tracking-[0.18em] text-white shadow-xl shadow-accent-500/20 transition hover:bg-accent-700 focus:ring-4 focus:ring-accent-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            className="inline-flex min-h-[88px] items-center justify-center rounded-xl px-8 py-4 text-lg font-bold uppercase tracking-[0.18em] text-white shadow-sm transition hover:opacity-90 focus:ring-4 focus:ring-accent-100 disabled:cursor-not-allowed disabled:opacity-60"
+                            style={{ backgroundColor: "#4e0bd9" }}
                             disabled={isSubmitting}
                             type="submit"
                         >
@@ -236,6 +237,10 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Código interno</p>
                                         <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.codigoInterno}</p>
+                                    </div>
+                                    <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">RUT del conductor</p>
+                                        <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.rut}</p>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tipo de vehiculo</p>

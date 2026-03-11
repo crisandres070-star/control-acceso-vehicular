@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { redirect } from "next/navigation";
 
 import { loginAction } from "@/app/login/actions";
@@ -23,16 +24,25 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
         <main className="flex min-h-screen items-center justify-center px-6 py-10">
             <div className="grid w-full max-w-6xl gap-8 lg:grid-cols-[1.1fr_0.9fr]">
                 <section className="panel overflow-hidden p-8 lg:p-12">
-                    <div className="mb-10 flex items-center gap-3 text-xs font-semibold uppercase tracking-[0.35em] text-accent-700">
-                        <span className="h-2.5 w-2.5 rounded-full bg-accent-500" />
-                        <span>Control de acceso de vehiculos</span>
+                    <div className="mb-6 flex justify-center lg:justify-start">
+                        <Image
+                            alt="Verix Logo"
+                            className="h-auto w-auto max-w-[180px]"
+                            height={50}
+                            priority
+                            src="/logo/verix-horizontal.png"
+                            width={180}
+                        />
                     </div>
-                    <div className="space-y-6">
+                    <div className="space-y-5">
+                        <p className="text-xs font-semibold uppercase tracking-[0.35em] text-accent-700">
+                            Plataforma de acceso
+                        </p>
                         <h1 className="max-w-2xl font-[family:var(--font-heading)] text-4xl font-bold tracking-tight text-slate-950 md:text-6xl">
-                            Valide ingresos en porteria y administre registros desde una sola plataforma.
+                            Control de acceso de vehiculos
                         </h1>
                         <p className="max-w-xl text-lg text-slate-600">
-                            Administracion controla vehiculos y auditorias. Porteria solo necesita ingresar la patente para obtener un resultado inmediato y claro.
+                            Validacion y administracion de accesos desde una sola plataforma, con una experiencia clara para porteria y administracion.
                         </p>
                     </div>
                     <div className="mt-10 grid gap-4 sm:grid-cols-3">

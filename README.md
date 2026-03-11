@@ -1,93 +1,90 @@
 # Vehicle Access Control
 
-Vehicle access control system built with Next.js 14, Tailwind CSS, Prisma ORM, and SQLite.
+Sistema de control de acceso vehicular construido con Next.js 14, Tailwind CSS y Prisma ORM.
 
-## Features
+## Funcionalidades
 
-- Role-based access for admin and security guard users
-- Vehicle CRUD management
-- Access validation by license plate
-- Automatic logging for every access check
-- Access logs CSV export
-- Search total entries by license plate
+- Autenticación por credenciales para `ADMIN` y `USER`.
+- CRUD de vehículos.
+- Validación de acceso por patente.
+- Registro automático de accesos.
+- Exportación CSV de bitácoras.
+- Campo interno alfanumérico `Código interno`.
 
 ## Stack
 
 - Next.js 14 App Router
 - Tailwind CSS
 - Prisma ORM
-- SQLite
+- PostgreSQL
 
-## Setup
+## Variables de entorno
 
-1. Install dependencies:
+Debe configurar estas variables en su archivo `.env` local y también en Vercel:
 
-   ```bash
-   npm install
-   ```
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/web_acceso?schema=public"
+SESSION_SECRET="change-this-super-secret-value"
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD="admin123"
+GUARD_USERNAME="guard"
+GUARD_PASSWORD="guard123"
+```
 
-2. Create your environment file:
-
-   ```bash
-   copy .env.example .env
-   ```
-
-3. Create the database and Prisma client:
-
-   ```bash
-   npm run db:push
-   ```
-
-4. Seed demo vehicles:
-
-   ```bash
-   npm run db:seed
-   ```
-
-5. Run the development server:
-
-   ```bash
-   npm run dev
-   ```
-
-## Default credentials
+## Credenciales por defecto
 
 - Admin: `admin` / `admin123`
-- Guard: `guard` / `guard123`
+- Portería: `guard` / `guard123`
 
-Change these values in `.env` before using the system outside local development.This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+## Ejecución local después de la migración
 
-## Getting Started
+PostgreSQL es ahora obligatorio para producción y también para el entorno local si desea ejecutar el sistema después de esta migración.
 
-First, run the development server:
+1. Instale dependencias:
+
+```bash
+npm install
+```
+
+2. Genere el cliente Prisma:
+
+```bash
+npx prisma generate
+```
+
+3. Aplique el esquema en PostgreSQL:
+
+```bash
+npx prisma db push
+```
+
+4. Inicie el entorno local:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Si desea cargar datos de ejemplo:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+```bash
+npm run db:seed
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Preparación para producción
 
-## Learn More
+Antes de desplegar, confirme que `DATABASE_URL` apunta a una base PostgreSQL válida y ejecute:
 
-To learn more about Next.js, take a look at the following resources:
+```bash
+npm run build
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Despliegue en Vercel
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Para desplegar correctamente en Vercel:
 
-## Deploy on Vercel
+1. Cree una base de datos PostgreSQL gestionada.
+2. Configure en Vercel las variables `DATABASE_URL`, `SESSION_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `GUARD_USERNAME` y `GUARD_PASSWORD`.
+3. Use `npm run build` como comando de compilación.
+4. Ejecute `npx prisma db push` contra la base PostgreSQL antes del primer uso productivo si el esquema aún no existe.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Con esto, la aplicación queda lista para funcionar con PostgreSQL en producción manteniendo el comportamiento actual.

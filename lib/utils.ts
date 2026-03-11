@@ -10,6 +10,28 @@ export function isAlphanumericCode(value: string) {
     return /^[A-Z0-9]+$/.test(value);
 }
 
+export function formatRutInput(value: string) {
+    const sanitized = value
+        .trim()
+        .toUpperCase()
+        .replace(/[^0-9K]/g, "")
+        .slice(0, 9);
+
+    if (sanitized.length <= 8) {
+        return sanitized;
+    }
+
+    return `${sanitized.slice(0, 8)}-${sanitized.slice(8)}`;
+}
+
+export function normalizeRut(value: string) {
+    return formatRutInput(value);
+}
+
+export function isValidRut(value: string) {
+    return /^[0-9]{8}-[0-9K]$/.test(normalizeRut(value));
+}
+
 export function formatDateTime(value: Date) {
     return new Intl.DateTimeFormat("es-ES", {
         dateStyle: "medium",

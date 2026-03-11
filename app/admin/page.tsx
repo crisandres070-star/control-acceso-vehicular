@@ -6,6 +6,19 @@ import { VehicleForm } from "@/components/admin/vehicle-form";
 import { prisma } from "@/lib/prisma";
 import { getQueryStringValue } from "@/lib/utils";
 
+type VehicleRow = {
+    id: number;
+    name: string;
+    licensePlate: string;
+    codigoInterno: string;
+    rut: string;
+    vehicleType: string;
+    brand: string;
+    company: string;
+    accessStatus: string;
+    createdAt: Date;
+};
+
 type AdminPageProps = {
     searchParams: {
         success?: string | string[];
@@ -14,13 +27,14 @@ type AdminPageProps = {
 };
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
-    const [vehicles, totalVehicles, allowedVehicles] = await Promise.all([
+    const [vehicleRecords, totalVehicles, allowedVehicles] = await Promise.all([
         prisma.vehicle.findMany({
             orderBy: { createdAt: "desc" },
         }),
         prisma.vehicle.count(),
         prisma.vehicle.count({ where: { accessStatus: "YES" } }),
     ]);
+    const vehicles = vehicleRecords as VehicleRow[];
 
     const blockedVehicles = totalVehicles - allowedVehicles;
     const companiesCount = new Set(vehicles.map((vehicle) => vehicle.company)).size;
@@ -115,8 +129,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                         <thead className="bg-slate-100/90 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                             <tr>
                                 <th className="px-6 py-4">Nombre</th>
-                                <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Código interno</th>
+                                <th className="px-6 py-4">RUT</th>
+                                <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Tipo de vehiculo</th>
                                 <th className="px-6 py-4">Marca</th>
                                 <th className="px-6 py-4">Empresa</th>
@@ -128,8 +143,9 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             {vehicles.map((vehicle) => (
                                 <tr className="transition hover:bg-slate-50/80" key={vehicle.id}>
                                     <td className="px-6 py-5 font-medium text-slate-900">{vehicle.name}</td>
-                                    <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{vehicle.licensePlate}</td>
                                     <td className="px-6 py-5 font-semibold tracking-[0.18em] text-slate-700">{vehicle.codigoInterno}</td>
+                                    <td className="px-6 py-5 font-semibold tracking-[0.12em] text-slate-700">{vehicle.rut}</td>
+                                    <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{vehicle.licensePlate}</td>
                                     <td className="px-6 py-5 text-slate-600">{vehicle.vehicleType}</td>
                                     <td className="px-6 py-5 text-slate-600">{vehicle.brand}</td>
                                     <td className="px-6 py-5 text-slate-600">{vehicle.company}</td>
@@ -155,7 +171,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             ))}
                             {vehicles.length === 0 ? (
                                 <tr>
-                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={8}>
+                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={9}>
                                         No hay vehiculos registrados todavia.
                                     </td>
                                 </tr>

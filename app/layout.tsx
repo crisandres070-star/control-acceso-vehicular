@@ -24,7 +24,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body className="font-[family:var(--font-body)] text-slate-900">
         <div className="flex min-h-screen flex-col">
           <div className="flex-1">{children}</div>
-          <footer className="px-6 pb-8 pt-4 text-center text-xs font-medium uppercase tracking-[0.18em] text-slate-500 sm:pb-10">
+          <footer className="border-t border-slate-200 bg-white px-6 py-4 text-center text-xs text-slate-500">
             © COPYRIGHT 2026, ALL RIGHTS RESERVED BY BOLDNESS
           </footer>
         </div>
