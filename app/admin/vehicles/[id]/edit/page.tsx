@@ -58,13 +58,13 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                     <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
                         <div>
                             <p className="text-xs font-semibold uppercase tracking-[0.32em] text-accent-700">
-                                Edicion de vehiculo
+                                Edición de vehículo
                             </p>
                             <h2 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950 lg:text-4xl">
-                                Actualizar vehiculo {vehicle.licensePlate}
+                                Actualizar vehículo {vehicle.licensePlate}
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                                Revise la ficha del vehiculo, mantenga la informacion operativa al dia y conserve una experiencia consistente con el resto del panel administrativo.
+                                Revise la ficha del vehículo, mantenga la información operativa al día y conserve una experiencia consistente con el resto del panel administrativo.
                             </p>
                         </div>
 
@@ -73,7 +73,7 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                                 Volver al listado
                             </Link>
                             <Link className="button-primary" href="/admin/logs">
-                                Ver bitacora
+                                Ver bitácora
                             </Link>
                         </div>
                     </div>
@@ -96,11 +96,11 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
 
                     <div className="rounded-[28px] border border-slate-200/80 bg-slate-50/85 p-5 shadow-sm">
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                            Clasificacion
+                            Clasificación
                         </p>
                         <p className="mt-3 text-xl font-semibold text-slate-950">{vehicle.vehicleType}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Marca registrada: {vehicle.brand}. Mantenga esta ficha precisa para una validacion visual mas rapida.
+                            Marca registrada: {vehicle.brand}. Mantenga esta ficha precisa para una validación visual más rápida.
                         </p>
                     </div>
 
@@ -110,17 +110,11 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                         </p>
                         <p className="mt-3 text-xl font-semibold">{accessLabel}</p>
                         <p className="mt-2 text-sm leading-6 text-current/80">
-                            Puede ajustar este permiso sin modificar el flujo de validacion ni el historial de accesos.
+                            Puede ajustar este permiso sin modificar el flujo de validación ni el historial de accesos.
                         </p>
                     </div>
                 </div>
             </section>
-
-            {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                    {decodeURIComponent(error)}
-                </div>
-            ) : null}
 
             <VehicleForm
                 action={updateVehicleAction.bind(null, vehicle.id)}
@@ -135,8 +129,10 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                     company: vehicle.company,
                     accessStatus: vehicle.accessStatus,
                 }}
-                description="Edite la ficha con una estructura clara, etiquetas mas legibles y una distribucion coherente con el panel administrativo principal."
-                heading="Ficha del vehiculo"
+                description="Edite la ficha con una estructura clara, etiquetas más legibles y una distribución coherente con el panel administrativo principal."
+                errorMessage={error}
+                heading="Ficha del vehículo"
+                id="edit-vehicle-form"
                 submitLabel="Guardar cambios"
             />
         </div>

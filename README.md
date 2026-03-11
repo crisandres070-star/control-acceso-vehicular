@@ -1,4 +1,4 @@
-# Vehicle Access Control
+# Control de acceso
 
 Sistema de control de acceso vehicular construido con Next.js 14, Tailwind CSS y Prisma ORM.
 
@@ -8,7 +8,7 @@ Sistema de control de acceso vehicular construido con Next.js 14, Tailwind CSS y
 - CRUD de vehículos.
 - Validación de acceso por patente.
 - Registro automático de accesos.
-- Exportación CSV de bitácoras.
+- Exportación XLSX de bitácoras.
 - Campo interno alfanumérico `Código interno`.
 
 ## Stack

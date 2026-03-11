@@ -106,7 +106,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                 <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                     <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent-700">
-                            Auditoria
+                            Auditoría
                         </p>
                         <h2 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950 lg:text-4xl">
                             Registro de accesos
@@ -114,13 +114,13 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
                             {plate
                                 ? `La patente ${plate} registra ${totalChecks} consulta${totalChecks === 1 ? "" : "s"} dentro del rango seleccionado.`
-                                : "Revise cada validacion realizada en porteria y exporte la bitacora cuando necesite reportes."}
+                                : "Revise cada validación realizada en portería y exporte la bitácora cuando necesite reportes."}
                         </p>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
                         <a className="button-primary" download href={exportHref}>
-                            Exportar CSV
+                            Exportar Excel
                         </a>
                         {hasFilters ? (
                             <Link className="button-secondary" href="/admin/logs">
@@ -173,7 +173,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                 <div className="panel p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Total registros</p>
                     <p className="mt-3 text-4xl font-bold text-slate-950">{totalChecks}</p>
-                    <p className="mt-2 text-sm text-slate-500">Resultado acumulado segun los filtros activos.</p>
+                    <p className="mt-2 text-sm text-slate-500">Resultado acumulado según los filtros activos.</p>
                 </div>
                 <div className="panel border-green-100 bg-green-50/60 p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Permitidos</p>
@@ -191,7 +191,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                         {startDate || endDate ? `${startDate || "Inicio"} - ${endDate || "Hoy"}` : "Sin filtro"}
                     </p>
                     <p className="mt-2 text-sm text-slate-500">
-                        {plate ? `Consulta centrada en ${plate}.` : "Vista general de toda la operacion registrada."}
+                        {plate ? `Consulta centrada en ${plate}.` : "Vista general de toda la operación registrada."}
                     </p>
                 </div>
             </section>

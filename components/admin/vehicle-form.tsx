@@ -24,6 +24,8 @@ type VehicleFormProps = {
     submitLabel: string;
     defaults?: VehicleDefaults;
     cancelHref?: string;
+    successMessage?: string;
+    errorMessage?: string;
 };
 
 export function VehicleForm({
@@ -34,6 +36,8 @@ export function VehicleForm({
     submitLabel,
     defaults,
     cancelHref,
+    successMessage,
+    errorMessage,
 }: VehicleFormProps) {
     const [licensePlate, setLicensePlate] = useState(defaults?.licensePlate ?? "");
     const [codigoInterno, setCodigoInterno] = useState(defaults?.codigoInterno ?? "");
@@ -53,7 +57,7 @@ export function VehicleForm({
         <section className="panel mx-auto max-w-4xl overflow-hidden scroll-mt-28" id={id}>
             <div className="border-b border-slate-200/70 bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(255,255,255,1))] px-6 py-6 lg:px-8 lg:py-7">
                 <p className="text-xs font-semibold uppercase tracking-[0.32em] text-accent-700">
-                    Formulario de vehiculo
+                    Formulario de vehículo
                 </p>
                 <h2 className="mt-3 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950 lg:text-3xl">
                     {heading}
@@ -61,12 +65,28 @@ export function VehicleForm({
                 <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">{description}</p>
             </div>
 
+            {successMessage ? (
+                <div className="px-6 pt-6 lg:px-8">
+                    <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
+                        {decodeURIComponent(successMessage)}
+                    </div>
+                </div>
+            ) : null}
+
+            {errorMessage ? (
+                <div className="px-6 pt-6 lg:px-8">
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                        {decodeURIComponent(errorMessage)}
+                    </div>
+                </div>
+            ) : null}
+
             <form action={action} className="grid gap-5 px-6 py-6 md:grid-cols-2 lg:px-8 lg:py-8">
                 <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5 shadow-sm">
                     <label className="field-label" htmlFor="name">
                         Nombre
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Nombre visible para administracion y porteria.</p>
+                    <p className="mb-3 text-sm text-slate-500">Nombre visible para administración y portería.</p>
                     <input className="input-base" defaultValue={defaults?.name} id="name" name="name" placeholder="Ej. Luis Herrera" type="text" />
                 </div>
 
@@ -115,9 +135,9 @@ export function VehicleForm({
 
                 <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5 shadow-sm">
                     <label className="field-label" htmlFor="vehicleType">
-                        Tipo de vehiculo
+                        Tipo de vehículo
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Categoria utilizada para identificar el vehiculo con rapidez.</p>
+                    <p className="mb-3 text-sm text-slate-500">Categoría utilizada para identificar el vehículo con rapidez.</p>
                     <input
                         className="input-base"
                         defaultValue={defaults?.vehicleType}
@@ -132,7 +152,7 @@ export function VehicleForm({
                     <label className="field-label" htmlFor="rut">
                         RUT del conductor
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Puede pegarlo con puntos o guion; el sistema lo normaliza automaticamente.</p>
+                    <p className="mb-3 text-sm text-slate-500">Puede pegarlo con puntos o guion; el sistema lo normaliza automáticamente.</p>
                     <input
                         autoCapitalize="characters"
                         className="input-base uppercase tracking-[0.12em]"
@@ -155,7 +175,7 @@ export function VehicleForm({
                     <label className="field-label" htmlFor="brand">
                         Marca
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Fabricante o marca principal para apoyo visual en validacion.</p>
+                    <p className="mb-3 text-sm text-slate-500">Fabricante o marca principal para apoyo visual en validación.</p>
                     <input className="input-base" defaultValue={defaults?.brand} id="brand" name="brand" placeholder="Ej. Toyota" type="text" />
                 </div>
 
@@ -163,7 +183,7 @@ export function VehicleForm({
                     <label className="field-label" htmlFor="company">
                         Empresa
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Organizacion asociada al permiso o bloqueo de ingreso.</p>
+                    <p className="mb-3 text-sm text-slate-500">Organización asociada al permiso o bloqueo de ingreso.</p>
                     <input className="input-base" defaultValue={defaults?.company} id="company" name="company" placeholder="Ej. Logistica Norte" type="text" />
                 </div>
 
@@ -171,15 +191,15 @@ export function VehicleForm({
                     <label className="field-label" htmlFor="accessStatus">
                         Estado de acceso
                     </label>
-                    <p className="mb-3 text-sm text-slate-500">Defina si el vehiculo debe quedar habilitado o bloqueado para el ingreso.</p>
+                    <p className="mb-3 text-sm text-slate-500">Defina si el vehículo debe quedar habilitado o bloqueado para el ingreso.</p>
                     <select
                         className="input-base"
                         defaultValue={defaults?.accessStatus ?? "YES"}
                         id="accessStatus"
                         name="accessStatus"
                     >
-                        <option value="YES">PERMITIR ACCESO</option>
-                        <option value="NO">DENEGAR ACCESO</option>
+                        <option value="YES">Permitir acceso</option>
+                        <option value="NO">Denegar acceso</option>
                     </select>
                 </div>
 

@@ -71,13 +71,13 @@ export function DeleteVehicleButton({ action, vehicleId, licensePlate }: DeleteV
                         role="dialog"
                     >
                         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-red-500">
-                            Confirmacion
+                            Confirmación
                         </p>
                         <h3 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950" id={titleId}>
-                            Eliminar vehiculo
+                            Eliminar vehículo
                         </h3>
                         <p className="mt-3 text-base leading-7 text-slate-600">
-                            Esta accion no se puede deshacer.
+                            Esta acción no se puede deshacer.
                         </p>
                         <div className="mt-5 rounded-[24px] border border-slate-200/80 bg-slate-50/80 px-4 py-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">

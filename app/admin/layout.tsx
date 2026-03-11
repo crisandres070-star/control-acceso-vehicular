@@ -5,6 +5,7 @@ import { requireRole } from "@/lib/auth";
 
 export default async function AdminLayout({ children }: Readonly<{ children: React.ReactNode }>) {
     const session = await requireRole("ADMIN");
+    const roleLabel = session.role === "ADMIN" ? "Administrador" : "Portería";
 
     return (
         <main className="min-h-screen">
@@ -16,7 +17,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                 Centro operativo
                             </p>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
-                                Gestion, trazabilidad y exportacion con una interfaz clara y consistente para operacion diaria.
+                                Gestión, trazabilidad y exportación con una interfaz clara y consistente para la operación diaria.
                             </p>
                         </div>
 
@@ -24,16 +25,16 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
 
                         <div className="mt-auto rounded-[28px] border border-accent-100 bg-accent-50/80 p-5 shadow-sm">
                             <p className="text-xs font-semibold uppercase tracking-[0.25em] text-accent-700">
-                                Sesion activa
+                                Sesión activa
                             </p>
                             <p className="mt-3 text-lg font-semibold text-slate-950">{session.username}</p>
                             <div className="mt-3 flex flex-wrap gap-2">
                                 <span className="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-accent-700 shadow-sm">
-                                    Rol {session.role}
+                                    Rol {roleLabel}
                                 </span>
                             </div>
                             <p className="mt-3 text-sm leading-6 text-slate-600">
-                                Acceso completo para administrar vehiculos, revisar bitacoras y exportar informacion.
+                                Acceso completo para administrar vehículos, revisar bitácoras y exportar información.
                             </p>
                         </div>
                     </aside>
@@ -44,17 +45,17 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                 <div className="flex min-w-0 items-center gap-4">
                                     <div className="flex h-10 shrink-0 items-center">
                                         <Image
-                                            alt="Verix"
-                                            className="h-10 w-auto"
-                                            height={40}
+                                            alt="COSAYACH"
+                                            className="h-12 w-auto"
+                                            height={48}
                                             priority
-                                            src="/logo/verix-horizontal.png"
-                                            width={150}
+                                            src="/logo/cosayach.png"
+                                            width={210}
                                         />
                                     </div>
                                     <div className="min-w-0">
                                         <p className="truncate font-[family:var(--font-heading)] text-xl font-bold text-slate-950 sm:text-2xl">
-                                            Control de acceso de vehículos
+                                            Control de acceso
                                         </p>
                                         <p className="mt-1 text-sm text-slate-500">
                                             Panel administrativo
@@ -63,10 +64,10 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <span className="topbar-chip">Rol {session.role}</span>
+                                    <span className="topbar-chip">Rol {roleLabel}</span>
                                     <form action="/logout" method="post">
                                         <button className="inline-flex min-h-[52px] items-center justify-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200" type="submit">
-                                            Cerrar sesion
+                                            Cerrar sesión
                                         </button>
                                     </form>
                                 </div>

@@ -26,6 +26,9 @@ type VehicleInput = {
     accessStatus: AccessDecision;
 };
 
+const VEHICLE_CREATED_MESSAGE = "Vehículo guardado exitosamente";
+const VEHICLE_UPDATED_MESSAGE = "Vehículo actualizado exitosamente";
+
 function parseVehicleInput(formData: FormData): VehicleInput {
     const name = String(formData.get("name") ?? "").trim();
     const licensePlate = normalizeLicensePlate(
@@ -73,35 +76,41 @@ function getActionErrorMessage(error: unknown) {
             : String(error.meta?.target ?? "");
 
         if (target.includes("rut")) {
-            return "Ya existe un vehiculo con ese RUT.";
+            return "Ya existe un vehículo con ese RUT.";
         }
 
         if (target.includes("licensePlate") || target.includes("license_plate")) {
-            return "Ya existe un vehiculo con esa patente.";
+            return "Ya existe un vehículo con esa patente.";
         }
 
-        return "Ya existe un vehiculo con un dato unico duplicado.";
+        return "Ya existe un vehículo con un dato único duplicado.";
     }
 
     if (error instanceof Error) {
         return error.message;
     }
 
-    return "Ocurrio un error inesperado al guardar el vehiculo.";
+    return "Ocurrió un error inesperado al guardar el vehículo.";
 }
 
 export async function createVehicleAction(formData: FormData) {
     await requireRole("ADMIN");
 
+    let vehicleId = 0;
+
     try {
         const input = parseVehicleInput(formData);
-        await prisma.vehicle.create({ data: input });
+        const vehicle = await prisma.vehicle.create({
+            data: input,
+            select: { id: true },
+        });
+        vehicleId = vehicle.id;
     } catch (error) {
-        redirect(`/admin?error=${encodeURIComponent(getActionErrorMessage(error))}`);
+        redirect(`/admin?formError=${encodeURIComponent(getActionErrorMessage(error))}#vehicle-form`);
     }
 
     revalidatePath("/admin");
-    redirect(`/admin?success=${encodeURIComponent("Vehiculo creado correctamente.")}`);
+    redirect(`/admin?success=${encodeURIComponent(VEHICLE_CREATED_MESSAGE)}&savedVehicleId=${vehicleId}#vehicles`);
 }
 
 export async function updateVehicleAction(id: number, formData: FormData) {
@@ -115,12 +124,13 @@ export async function updateVehicleAction(id: number, formData: FormData) {
         });
     } catch (error) {
         redirect(
-            `/admin/vehicles/${id}/edit?error=${encodeURIComponent(getActionErrorMessage(error))}`,
+            `/admin/vehicles/${id}/edit?error=${encodeURIComponent(getActionErrorMessage(error))}#edit-vehicle-form`,
         );
     }
 
     revalidatePath("/admin");
-    redirect(`/admin?success=${encodeURIComponent("Vehiculo actualizado correctamente.")}`);
+    revalidatePath(`/admin/vehicles/${id}/edit`);
+    redirect(`/admin?success=${encodeURIComponent(VEHICLE_UPDATED_MESSAGE)}&savedVehicleId=${id}#vehicles`);
 }
 
 export async function deleteVehicleAction(formData: FormData) {
@@ -129,10 +139,10 @@ export async function deleteVehicleAction(formData: FormData) {
     const id = Number(formData.get("id"));
 
     if (!Number.isInteger(id)) {
-        redirect(`/admin?error=${encodeURIComponent("Identificador de vehiculo invalido.")}`);
+        redirect(`/admin?error=${encodeURIComponent("Identificador de vehículo inválido.")}`);
     }
 
     await prisma.vehicle.delete({ where: { id } });
     revalidatePath("/admin");
-    redirect(`/admin?success=${encodeURIComponent("Vehiculo eliminado correctamente.")}`);
+    redirect(`/admin?success=${encodeURIComponent("Vehículo eliminado correctamente.")}`);
 }

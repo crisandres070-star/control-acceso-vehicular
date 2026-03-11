@@ -19,7 +19,7 @@ export async function loginAction(formData: FormData) {
     }
 
     if (!isValidCredentials(role, username, password)) {
-        redirect(`/login?error=${encodeURIComponent("Credenciales invalidas para el rol seleccionado.")}`);
+        redirect(`/login?error=${encodeURIComponent("Credenciales inválidas para el rol seleccionado.")}`);
     }
 
     await createSession(role, username);

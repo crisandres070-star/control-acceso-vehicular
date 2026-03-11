@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     const session = await getSession();
 
     if (!session || (session.role !== "ADMIN" && session.role !== "USER")) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        return NextResponse.json({ error: "No autorizado." }, { status: 401 });
     }
 
     const body = (await request.json().catch(() => null)) as
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 
     if (!licensePlate) {
         return NextResponse.json(
-            { error: "License plate is required." },
+            { error: "La patente es obligatoria." },
             { status: 400 },
         );
     }

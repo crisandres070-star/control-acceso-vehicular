@@ -14,13 +14,13 @@ const headingFont = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Vehicle Access Control",
-  description: "Role-based vehicle access control system for admin and security guard users.",
+  title: "Control de acceso",
+  description: "Sistema de control de acceso para administración y portería.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={`${bodyFont.variable} ${headingFont.variable}`}>
+    <html lang="es" className={`${bodyFont.variable} ${headingFont.variable}`}>
       <body className="font-[family:var(--font-body)] text-slate-900">
         <div className="flex min-h-screen flex-col">
           <div className="flex-1">{children}</div>

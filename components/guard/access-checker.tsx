@@ -38,7 +38,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
 
     function formatVehicleValue(value: string) {
         if (value === "Unknown vehicle") {
-            return "Vehiculo no registrado";
+            return "Vehículo no registrado";
         }
 
         if (value === "Not registered") {
@@ -110,19 +110,19 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
         <section className="w-full rounded-[36px] border border-white/85 bg-white/95 shadow-[0_32px_90px_rgba(15,23,42,0.14)] xl:max-w-[1380px]">
             <div className="flex flex-col gap-4 border-b border-slate-200 bg-white px-6 py-4 lg:flex-row lg:items-center lg:justify-between lg:px-8">
                 <div className="flex min-w-0 items-center gap-4">
-                    <div className="flex h-10 shrink-0 items-center">
+                    <div className="flex h-12 shrink-0 items-center">
                         <Image
-                            alt="Verix"
-                            className="h-10 w-auto"
-                            height={40}
+                            alt="COSAYACH"
+                            className="h-auto w-auto object-contain"
+                            height={50}
                             priority
-                            src="/logo/verix-horizontal.png"
-                            width={150}
+                            src="/logo/cosayach.png"
+                            width={160}
                         />
                     </div>
                     <div className="min-w-0">
                         <p className="truncate font-[family:var(--font-heading)] text-xl font-bold text-slate-950 sm:text-2xl">
-                            Control de acceso de vehículos
+                            Control de acceso
                         </p>
                         <p className="mt-1 text-sm text-slate-500">
                             Validación para portería
@@ -137,7 +137,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                     </span>
                     <form action="/logout" method="post">
                         <button className="inline-flex min-h-[52px] items-center justify-center rounded-lg border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50 focus:ring-4 focus:ring-slate-100" type="submit">
-                            Cerrar sesion
+                            Cerrar sesión
                         </button>
                     </form>
                 </div>
@@ -152,7 +152,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                         INGRESAR PATENTE
                     </h2>
                     <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-slate-600">
-                        Validacion inmediata para porteria. Despues de cada consulta, el campo vuelve a quedar listo automaticamente.
+                        Sistema de validación instantánea
                     </p>
                 </div>
 
@@ -213,15 +213,15 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                         </p>
                         <p className={`mx-auto mt-4 max-w-2xl text-base leading-7 ${result ? "text-white/85" : "text-slate-500"}`}>
                             {result
-                                ? "La decision se muestra con alto contraste para lectura inmediata en operaciones de acceso."
-                                : "Ingrese una patente para obtener el resultado y los datos del vehiculo consultado."}
+                                ? "La decisión se muestra con alto contraste para lectura inmediata en operaciones de acceso."
+                                : "Ingrese una patente para obtener el resultado y los datos del vehículo consultado."}
                         </p>
                     </div>
 
                     <div className="rounded-[32px] border border-slate-200/80 bg-slate-100 p-6 shadow-sm">
                         <div className="rounded-[28px] bg-white p-5 shadow-sm">
                             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                                Informacion del vehiculo
+                                Información del vehículo
                             </p>
 
                             {vehicle ? (
@@ -243,7 +243,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                                         <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.rut}</p>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tipo de vehiculo</p>
+                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tipo de vehículo</p>
                                         <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.vehicleType}</p>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
@@ -257,7 +257,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                                 </div>
                             ) : (
                                 <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
-                                    Despues de consultar una patente apareceran aqui los datos del vehiculo correspondiente.
+                                    Después de consultar una patente aparecerán aquí los datos del vehículo correspondiente.
                                 </div>
                             )}
                         </div>

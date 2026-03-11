@@ -84,4 +84,22 @@ body {
     @apply inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 shadow-sm;
   }
 
+  .saved-vehicle-row td {
+    animation: savedVehicleRowHighlight 4.5s ease-out forwards;
+  }
+
+}
+
+@keyframes savedVehicleRowHighlight {
+  0% {
+    background-color: rgba(78, 11, 217, 0.18);
+  }
+
+  70% {
+    background-color: rgba(78, 11, 217, 0.12);
+  }
+
+  100% {
+    background-color: transparent;
+  }
 }
