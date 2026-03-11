@@ -1,4 +1,61 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Vehicle Access Control
+
+Vehicle access control system built with Next.js 14, Tailwind CSS, Prisma ORM, and SQLite.
+
+## Features
+
+- Role-based access for admin and security guard users
+- Vehicle CRUD management
+- Access validation by license plate
+- Automatic logging for every access check
+- Access logs CSV export
+- Search total entries by license plate
+
+## Stack
+
+- Next.js 14 App Router
+- Tailwind CSS
+- Prisma ORM
+- SQLite
+
+## Setup
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Create your environment file:
+
+   ```bash
+   copy .env.example .env
+   ```
+
+3. Create the database and Prisma client:
+
+   ```bash
+   npm run db:push
+   ```
+
+4. Seed demo vehicles:
+
+   ```bash
+   npm run db:seed
+   ```
+
+5. Run the development server:
+
+   ```bash
+   npm run dev
+   ```
+
+## Default credentials
+
+- Admin: `admin` / `admin123`
+- Guard: `guard` / `guard123`
+
+Change these values in `.env` before using the system outside local development.This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started
 

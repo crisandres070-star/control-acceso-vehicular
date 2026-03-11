@@ -1,0 +1,71 @@
+import { SignJWT, jwtVerify } from "jose";
+
+export type AppRole = "ADMIN" | "USER";
+
+type SessionPayload = {
+    role: AppRole;
+    username: string;
+};
+
+export const SESSION_COOKIE_NAME = "vehicle-access-session";
+
+function getSecretKey() {
+    return new TextEncoder().encode(
+        process.env.SESSION_SECRET || "development-session-secret-change-me",
+    );
+}
+
+export function parseRole(value: string): AppRole | null {
+    if (value === "ADMIN" || value === "USER") {
+        return value;
+    }
+
+    return null;
+}
+
+export function getDashboardPath(role: AppRole) {
+    return role === "ADMIN" ? "/admin" : "/guard";
+}
+
+export function isValidCredentials(
+    role: AppRole,
+    username: string,
+    password: string,
+) {
+    const expectedUsername =
+        role === "ADMIN"
+            ? process.env.ADMIN_USERNAME || "admin"
+            : process.env.GUARD_USERNAME || "guard";
+    const expectedPassword =
+        role === "ADMIN"
+            ? process.env.ADMIN_PASSWORD || "admin123"
+            : process.env.GUARD_PASSWORD || "guard123";
+
+    return username === expectedUsername && password === expectedPassword;
+}
+
+export async function signSessionToken(payload: SessionPayload) {
+    return new SignJWT(payload)
+        .setProtectedHeader({ alg: "HS256" })
+        .setIssuedAt()
+        .setExpirationTime("1d")
+        .sign(getSecretKey());
+}
+
+export async function verifySessionToken(token: string) {
+    try {
+        const { payload } = await jwtVerify(token, getSecretKey());
+
+        if (payload.role !== "ADMIN" && payload.role !== "USER") {
+            return null;
+        }
+
+        if (typeof payload.username !== "string") {
+            return null;
+        }
+
+        return payload as SessionPayload;
+    } catch {
+        return null;
+    }
+}

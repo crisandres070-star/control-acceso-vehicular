@@ -1,4 +1,13 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+node_modules
+.next
+out
+coverage
+*.log
+.env
+.env.local
+prisma/dev.db
+prisma/dev.db-journal
+dist# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies
 /node_modules
