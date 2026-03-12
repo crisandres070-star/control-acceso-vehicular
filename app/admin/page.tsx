@@ -8,10 +8,8 @@ import { getQueryStringValue } from "@/lib/utils";
 
 type VehicleRow = {
     id: number;
-    name: string;
     licensePlate: string;
     codigoInterno: string;
-    rut: string;
     vehicleType: string;
     brand: string;
     company: string;
@@ -143,9 +141,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                     <table className="min-w-full overflow-hidden rounded-[24px] text-sm">
                         <thead className="bg-slate-100/90 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                             <tr>
-                                <th className="px-6 py-4">Nombre</th>
                                 <th className="px-6 py-4">Código interno</th>
-                                <th className="px-6 py-4">RUT</th>
                                 <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Tipo de vehículo</th>
                                 <th className="px-6 py-4">Marca</th>
@@ -164,9 +160,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                                         id={`vehicle-${vehicle.id}`}
                                         key={vehicle.id}
                                     >
-                                        <td className="px-6 py-5 font-medium text-slate-900">{vehicle.name}</td>
                                         <td className="px-6 py-5 font-semibold tracking-[0.18em] text-slate-700">{vehicle.codigoInterno}</td>
-                                        <td className="px-6 py-5 font-semibold tracking-[0.12em] text-slate-700">{vehicle.rut}</td>
                                         <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{vehicle.licensePlate}</td>
                                         <td className="px-6 py-5 text-slate-600">{vehicle.vehicleType}</td>
                                         <td className="px-6 py-5 text-slate-600">{vehicle.brand}</td>
@@ -194,7 +188,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
                             })}
                             {vehicles.length === 0 ? (
                                 <tr>
-                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={9}>
+                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={7}>
                                         No hay vehículos registrados todavía.
                                     </td>
                                 </tr>

@@ -11,7 +11,6 @@ type AccessLogExportRow = {
     id: number;
     licensePlate: string;
     codigoInterno: string | null;
-    name: string;
     result: string;
     createdAt: Date;
 };
@@ -19,7 +18,6 @@ type AccessLogExportRow = {
 type VehicleExportLookup = {
     licensePlate: string;
     codigoInterno: string;
-    rut: string;
     vehicleType: string;
     brand: string;
     company: string;
@@ -104,7 +102,6 @@ export async function GET(request: Request) {
             select: {
                 licensePlate: true,
                 codigoInterno: true,
-                rut: true,
                 vehicleType: true,
                 brand: true,
                 company: true,
@@ -128,8 +125,6 @@ export async function GET(request: Request) {
 
     worksheet.columns = [
         { header: "Código interno", key: "codigoInterno", width: 18 },
-        { header: "RUT", key: "rut", width: 16 },
-        { header: "Nombre", key: "name", width: 28 },
         { header: "Patente", key: "licensePlate", width: 14 },
         { header: "Tipo de vehículo", key: "vehicleType", width: 20 },
         { header: "Marca", key: "brand", width: 18 },
@@ -169,8 +164,6 @@ export async function GET(request: Request) {
         const isGranted = log.result === "YES";
         const row = worksheet.addRow({
             codigoInterno: formatVehicleValue(log.codigoInterno ?? vehicle?.codigoInterno),
-            rut: formatVehicleValue(vehicle?.rut),
-            name: formatVehicleValue(log.name),
             licensePlate: formatVehicleValue(log.licensePlate),
             vehicleType: formatVehicleValue(vehicle?.vehicleType),
             brand: formatVehicleValue(vehicle?.brand),
@@ -184,7 +177,7 @@ export async function GET(request: Request) {
         row.eachCell((cell, columnNumber) => {
             cell.alignment = {
                 vertical: "middle",
-                horizontal: columnNumber >= 8 ? "center" : "left",
+                horizontal: columnNumber >= 6 ? "center" : "left",
             };
             cell.border = {
                 top: { style: "thin", color: { argb: "FFE2E8F0" } },
@@ -199,7 +192,7 @@ export async function GET(request: Request) {
             };
         });
 
-        row.getCell(9).font = {
+        row.getCell(7).font = {
             bold: true,
             color: { argb: isGranted ? "FF166534" : "FFB91C1C" },
         };

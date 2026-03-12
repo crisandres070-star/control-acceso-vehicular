@@ -6,10 +6,8 @@ import { useEffect, useRef, useState } from "react";
 type CheckResponse = {
     result: "YES" | "NO";
     vehicle: {
-        name: string;
         licensePlate: string;
         codigoInterno: string;
-        rut: string;
         vehicleType: string;
         brand: string;
         company: string;
@@ -96,10 +94,8 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
     const granted = result?.result === "YES";
     const vehicle = result
         ? {
-            name: formatVehicleValue(result.vehicle.name),
             licensePlate: formatVehicleValue(result.vehicle.licensePlate),
             codigoInterno: formatVehicleValue(result.vehicle.codigoInterno),
-            rut: formatVehicleValue(result.vehicle.rut),
             vehicleType: formatVehicleValue(result.vehicle.vehicleType),
             brand: formatVehicleValue(result.vehicle.brand),
             company: formatVehicleValue(result.vehicle.company),
@@ -227,20 +223,12 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                             {vehicle ? (
                                 <div className="mt-5 grid gap-4 sm:grid-cols-2">
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Nombre</p>
-                                        <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.name}</p>
-                                    </div>
-                                    <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Patente</p>
                                         <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.licensePlate}</p>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Código interno</p>
                                         <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.codigoInterno}</p>
-                                    </div>
-                                    <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">RUT del conductor</p>
-                                        <p className="mt-2 text-lg font-semibold text-slate-950">{vehicle.rut}</p>
                                     </div>
                                     <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Tipo de vehículo</p>

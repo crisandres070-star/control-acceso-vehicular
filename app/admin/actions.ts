@@ -1,5 +1,7 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
+
 import { Prisma } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
@@ -9,17 +11,13 @@ import type { AccessDecision } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import {
     isAlphanumericCode,
-    isValidRut,
     normalizeInternalCode,
     normalizeLicensePlate,
-    normalizeRut,
 } from "@/lib/utils";
 
 type VehicleInput = {
-    name: string;
     licensePlate: string;
     codigoInterno: string;
-    rut: string;
     vehicleType: string;
     brand: string;
     company: string;
@@ -30,14 +28,12 @@ const VEHICLE_CREATED_MESSAGE = "Vehículo guardado exitosamente";
 const VEHICLE_UPDATED_MESSAGE = "Vehículo actualizado exitosamente";
 
 function parseVehicleInput(formData: FormData): VehicleInput {
-    const name = String(formData.get("name") ?? "").trim();
     const licensePlate = normalizeLicensePlate(
         String(formData.get("licensePlate") ?? ""),
     );
     const codigoInterno = normalizeInternalCode(
         String(formData.get("codigoInterno") ?? ""),
     );
-    const rut = normalizeRut(String(formData.get("rut") ?? ""));
     const vehicleType = String(formData.get("vehicleType") ?? "").trim();
     const brand = String(formData.get("brand") ?? "").trim();
     const company = String(formData.get("company") ?? "").trim();
@@ -45,27 +41,30 @@ function parseVehicleInput(formData: FormData): VehicleInput {
     const accessStatus: AccessDecision =
         accessStatusInput === "YES" ? "YES" : "NO";
 
-    if (!name || !licensePlate || !codigoInterno || !rut || !vehicleType || !brand || !company) {
-        throw new Error("Todos los campos del vehículo son obligatorios.");
+    if (!licensePlate || !codigoInterno || !vehicleType || !brand || !company) {
+        throw new Error("Patente, Código interno, tipo de vehículo, marca y empresa son obligatorios.");
     }
 
     if (!isAlphanumericCode(codigoInterno)) {
         throw new Error("El Código interno solo puede contener letras y números.");
     }
 
-    if (!isValidRut(rut)) {
-        throw new Error("El RUT debe tener el formato 12345678-9 o 12345678-K.");
-    }
-
     return {
-        name,
         licensePlate,
         codigoInterno,
-        rut,
         vehicleType,
         brand,
         company,
         accessStatus,
+    };
+}
+
+function buildSystemVehicleIdentity(licensePlate: string) {
+    const token = randomUUID().replace(/-/g, "").slice(0, 12).toUpperCase();
+
+    return {
+        name: `Vehículo ${licensePlate}`,
+        rut: `AUTO-${token}`,
     };
 }
 
@@ -75,15 +74,11 @@ function getActionErrorMessage(error: unknown) {
             ? error.meta?.target.join(",")
             : String(error.meta?.target ?? "");
 
-        if (target.includes("rut")) {
-            return "Ya existe un vehículo con ese RUT.";
-        }
-
         if (target.includes("licensePlate") || target.includes("license_plate")) {
             return "Ya existe un vehículo con esa patente.";
         }
 
-        return "Ya existe un vehículo con un dato único duplicado.";
+        return "Ya existe un vehículo con datos duplicados.";
     }
 
     if (error instanceof Error) {
@@ -100,8 +95,12 @@ export async function createVehicleAction(formData: FormData) {
 
     try {
         const input = parseVehicleInput(formData);
+        const systemIdentity = buildSystemVehicleIdentity(input.licensePlate);
         const vehicle = await prisma.vehicle.create({
-            data: input,
+            data: {
+                ...input,
+                ...systemIdentity,
+            },
             select: { id: true },
         });
         vehicleId = vehicle.id;
@@ -118,9 +117,25 @@ export async function updateVehicleAction(id: number, formData: FormData) {
 
     try {
         const input = parseVehicleInput(formData);
+        const existingVehicle = await prisma.vehicle.findUnique({
+            where: { id },
+            select: {
+                name: true,
+                rut: true,
+            },
+        });
+
+        if (!existingVehicle) {
+            throw new Error("No se encontró el vehículo a actualizar.");
+        }
+
         await prisma.vehicle.update({
             where: { id },
-            data: input,
+            data: {
+                ...input,
+                name: existingVehicle.name,
+                rut: existingVehicle.rut,
+            },
         });
     } catch (error) {
         redirect(

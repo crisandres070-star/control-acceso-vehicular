@@ -14,14 +14,8 @@ type AccessLogRow = {
     id: number;
     licensePlate: string;
     codigoInterno: string | null;
-    name: string;
     result: string;
     createdAt: Date;
-};
-
-type VehicleRutLookup = {
-    licensePlate: string;
-    rut: string;
 };
 
 type LogsPageProps = {
@@ -62,24 +56,6 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
         prisma.accessLog.count({ where: { ...(whereInput ?? {}), result: "NO" } }),
     ]);
     const logs = logRecords as AccessLogRow[];
-    const uniquePlates = Array.from(new Set(logs.map((log) => log.licensePlate)));
-    const vehicleRutRecords = uniquePlates.length > 0
-        ? await prisma.vehicle.findMany({
-            where: { licensePlate: { in: uniquePlates } },
-            select: {
-                licensePlate: true,
-                rut: true,
-            },
-        })
-        : [];
-    const vehicleRuts = vehicleRutRecords as VehicleRutLookup[];
-    const rutByPlate = new Map(
-        vehicleRuts.map((vehicle) => [vehicle.licensePlate, vehicle.rut]),
-    );
-    const logsWithRut = logs.map((log) => ({
-        ...log,
-        rut: rutByPlate.get(log.licensePlate) ?? null,
-    }));
 
     const exportParams = new URLSearchParams();
 
@@ -202,7 +178,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                         Historial de accesos
                     </h3>
                     <p className="mt-2 text-sm text-slate-600">
-                        Cada consulta queda registrada con fecha, patente, Código interno, RUT disponible, nombre y resultado final.
+                        Cada consulta queda registrada con fecha, patente, Código interno y resultado final.
                     </p>
                 </div>
 
@@ -213,19 +189,15 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                                 <th className="px-6 py-4">Fecha</th>
                                 <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Código interno</th>
-                                <th className="px-6 py-4">RUT</th>
-                                <th className="px-6 py-4">Nombre</th>
                                 <th className="px-6 py-4">Resultado</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
-                            {logsWithRut.map((log) => (
+                            {logs.map((log) => (
                                 <tr className="transition hover:bg-slate-50/80" key={log.id}>
                                     <td className="px-6 py-5 text-slate-600">{formatDateTime(log.createdAt)}</td>
                                     <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{log.licensePlate}</td>
                                     <td className="px-6 py-5 font-semibold tracking-[0.18em] text-slate-700">{log.codigoInterno ?? "No registrado"}</td>
-                                    <td className="px-6 py-5 font-semibold tracking-[0.12em] text-slate-700">{log.rut ?? "No disponible"}</td>
-                                    <td className="px-6 py-5 text-slate-700">{log.name}</td>
                                     <td className="px-6 py-5">
                                         <span
                                             className={`status-pill ${log.result === "YES"
@@ -240,7 +212,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                             ))}
                             {logs.length === 0 ? (
                                 <tr>
-                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={6}>
+                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={4}>
                                         No hay registros para los filtros seleccionados.
                                     </td>
                                 </tr>

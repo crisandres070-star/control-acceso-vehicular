@@ -3,13 +3,9 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { formatRutInput } from "@/lib/utils";
-
 type VehicleDefaults = {
-    name?: string;
     licensePlate?: string;
     codigoInterno?: string;
-    rut?: string;
     vehicleType?: string;
     brand?: string;
     company?: string;
@@ -41,13 +37,11 @@ export function VehicleForm({
 }: VehicleFormProps) {
     const [licensePlate, setLicensePlate] = useState(defaults?.licensePlate ?? "");
     const [codigoInterno, setCodigoInterno] = useState(defaults?.codigoInterno ?? "");
-    const [rut, setRut] = useState(defaults?.rut ?? "");
 
     useEffect(() => {
         setLicensePlate(defaults?.licensePlate ?? "");
         setCodigoInterno(defaults?.codigoInterno ?? "");
-        setRut(defaults?.rut ?? "");
-    }, [defaults?.codigoInterno, defaults?.licensePlate, defaults?.rut]);
+    }, [defaults?.codigoInterno, defaults?.licensePlate]);
 
     function sanitizeCodigoInterno(value: string) {
         return value.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -82,14 +76,6 @@ export function VehicleForm({
             ) : null}
 
             <form action={action} className="grid gap-5 px-6 py-6 md:grid-cols-2 lg:px-8 lg:py-8">
-                <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5 shadow-sm">
-                    <label className="field-label" htmlFor="name">
-                        Nombre
-                    </label>
-                    <p className="mb-3 text-sm text-slate-500">Nombre visible para administración y portería.</p>
-                    <input className="input-base" defaultValue={defaults?.name} id="name" name="name" placeholder="Ej. Luis Herrera" type="text" />
-                </div>
-
                 <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5 shadow-sm">
                     <label className="field-label" htmlFor="licensePlate">
                         Patente
@@ -145,29 +131,6 @@ export function VehicleForm({
                         name="vehicleType"
                         placeholder="Ej. Camioneta"
                         type="text"
-                    />
-                </div>
-
-                <div className="rounded-[28px] border border-slate-200/80 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] p-5 shadow-sm md:col-start-1">
-                    <label className="field-label" htmlFor="rut">
-                        RUT del conductor
-                    </label>
-                    <p className="mb-3 text-sm text-slate-500">Puede pegarlo con puntos o guion; el sistema lo normaliza automáticamente.</p>
-                    <input
-                        autoCapitalize="characters"
-                        className="input-base uppercase tracking-[0.12em]"
-                        id="rut"
-                        name="rut"
-                        onChange={(event) => {
-                            setRut(formatRutInput(event.target.value));
-                        }}
-                        pattern="[0-9]{8}-[0-9K]"
-                        placeholder="12.345.678-9"
-                        required
-                        spellCheck={false}
-                        title="Ingrese un RUT en formato 12345678-9 o 12345678-K"
-                        type="text"
-                        value={rut}
                     />
                 </div>
 

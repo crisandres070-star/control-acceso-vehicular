@@ -9,10 +9,8 @@ import { getQueryStringValue } from "@/lib/utils";
 
 type EditableVehicle = {
     id: number;
-    name: string;
     licensePlate: string;
     codigoInterno: string;
-    rut: string;
     vehicleType: string;
     brand: string;
     company: string;
@@ -82,15 +80,15 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                 <div className="grid gap-4 px-6 py-6 md:grid-cols-3 lg:px-8 lg:py-8">
                     <div className="rounded-[28px] border border-slate-200/80 bg-slate-50/85 p-5 shadow-sm">
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                            Responsable
+                            Identificación
                         </p>
-                        <p className="mt-3 text-xl font-semibold text-slate-950">{vehicle.name}</p>
+                        <p className="mt-3 text-xl font-semibold tracking-[0.18em] text-slate-950">{vehicle.licensePlate}</p>
                         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Código interno</p>
                         <p className="mt-2 font-semibold tracking-[0.18em] text-slate-700">{vehicle.codigoInterno}</p>
-                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">RUT</p>
-                        <p className="mt-2 font-semibold tracking-[0.12em] text-slate-700">{vehicle.rut}</p>
+                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Empresa</p>
+                        <p className="mt-2 font-semibold text-slate-700">{vehicle.company}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Registro asociado a {vehicle.company} para control y seguimiento administrativo.
+                            Registro operativo listo para control y seguimiento administrativo.
                         </p>
                     </div>
 
@@ -120,10 +118,8 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                 action={updateVehicleAction.bind(null, vehicle.id)}
                 cancelHref="/admin#vehicles"
                 defaults={{
-                    name: vehicle.name,
                     licensePlate: vehicle.licensePlate,
                     codigoInterno: vehicle.codigoInterno,
-                    rut: vehicle.rut,
                     vehicleType: vehicle.vehicleType,
                     brand: vehicle.brand,
                     company: vehicle.company,
