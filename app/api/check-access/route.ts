@@ -15,6 +15,13 @@ type VehicleLookup = {
     company: string;
     accessStatus: string;
     createdAt: Date;
+    vehiculoChoferes: Array<{
+        chofer: {
+            id: number;
+            nombre: string;
+            rut: string;
+        };
+    }>;
 };
 
 export async function POST(request: Request) {
@@ -40,6 +47,24 @@ export async function POST(request: Request) {
 
     const vehicleRecord = await prisma.vehicle.findUnique({
         where: { licensePlate },
+        include: {
+            vehiculoChoferes: {
+                orderBy: {
+                    chofer: {
+                        nombre: "asc",
+                    },
+                },
+                select: {
+                    chofer: {
+                        select: {
+                            id: true,
+                            nombre: true,
+                            rut: true,
+                        },
+                    },
+                },
+            },
+        },
     });
     const vehicle = vehicleRecord as VehicleLookup | null;
 
@@ -53,6 +78,7 @@ export async function POST(request: Request) {
             vehicleType: vehicle.vehicleType,
             brand: vehicle.brand,
             company: vehicle.company,
+            choferes: vehicle.vehiculoChoferes.map((assignment) => assignment.chofer),
         }
         : {
             name: "Unknown vehicle",
@@ -62,6 +88,7 @@ export async function POST(request: Request) {
             vehicleType: "Not registered",
             brand: "Not registered",
             company: "Not registered",
+            choferes: [],
         };
 
     const accessLogData = {
@@ -69,6 +96,10 @@ export async function POST(request: Request) {
         codigoInterno: vehicle?.codigoInterno ?? null,
         name: vehicleDetails.name,
         result,
+        operatorUserId: session.userId ?? null,
+        operatorUsername: session.username,
+        operatorRole: session.role,
+        operatorPorteriaNombre: session.porteriaNombre ?? null,
     };
 
     await prisma.accessLog.create({
@@ -76,6 +107,7 @@ export async function POST(request: Request) {
     });
 
     return NextResponse.json({
+        isRegistered: Boolean(vehicle),
         result,
         vehicle: vehicleDetails,
     });

@@ -8,10 +8,13 @@
 
 html {
   min-height: 100%;
+  background-color: #eef2f6;
 }
 
 body {
   min-height: 100vh;
+  overscroll-behavior-y: contain;
+  -webkit-tap-highlight-color: transparent;
   background-color: #eef2f6;
   background-image:
     radial-gradient(circle at 0% 0%, rgba(124, 58, 237, 0.12), transparent 28%),
@@ -19,6 +22,14 @@ body {
     linear-gradient(180deg, rgba(247, 249, 252, 0.98), rgba(238, 242, 246, 0.98));
   background-size: auto, auto, auto;
   color: #0f172a;
+}
+
+@media (display-mode: standalone) {
+
+  html,
+  body {
+    min-height: 100dvh;
+  }
 }
 
 @layer base {
@@ -40,11 +51,11 @@ body {
 
 @layer components {
   .panel {
-    @apply rounded-xl border border-slate-200/80 bg-white shadow-sm;
+    @apply rounded-[28px] border border-slate-200/75 bg-white shadow-sm;
   }
 
   .panel-muted {
-    @apply rounded-xl border border-slate-200/80 bg-white shadow-sm;
+    @apply rounded-[28px] border border-slate-200/75 bg-white shadow-sm;
   }
 
   .input-base {
@@ -69,21 +80,22 @@ body {
   }
 
   .sidebar-link {
-    @apply flex items-start gap-3 rounded-xl px-4 py-3 transition;
+    @apply flex items-start gap-3 rounded-[20px] border px-4 py-3.5 transition;
   }
 
   .sidebar-link-active {
-    @apply bg-accent-600 text-white shadow-lg shadow-accent-500/20;
+    @apply border-accent-100 bg-accent-50 text-accent-900 shadow-sm;
   }
 
   .sidebar-link-idle {
-    @apply bg-slate-100/80 text-slate-700 hover:bg-accent-50 hover:text-accent-800;
+    @apply border-slate-200/70 bg-slate-50/80 text-slate-700 hover:border-slate-300 hover:bg-white hover:text-slate-900;
   }
 
   .topbar-chip {
-    @apply inline-flex items-center rounded-full border border-slate-200 bg-white/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600 shadow-sm;
+    @apply inline-flex items-center rounded-full border border-slate-200 bg-slate-50/90 px-4 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600;
   }
 
+  .saved-row td,
   .saved-vehicle-row td {
     animation: savedVehicleRowHighlight 4.5s ease-out forwards;
   }

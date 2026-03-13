@@ -9,6 +9,7 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:seed:users": "tsx scripts/seed-auth-users.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {
@@ -19,6 +20,7 @@
     "exceljs": "^4.4.0",
     "jose": "^5.9.6",
     "next": "14.2.30",
+    "openai": "^4.104.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

@@ -7,14 +7,101 @@ import {
     isValidCredentials,
     parseRole,
     signSessionToken,
+    type SessionPayload,
     verifySessionToken,
     type AppRole,
 } from "@/lib/auth-core";
+import { verifyPassword } from "@/lib/password";
+import { prisma } from "@/lib/prisma";
 
 export { getDashboardPath, isValidCredentials, parseRole, type AppRole };
 
-export async function createSession(role: AppRole, username: string) {
-    const token = await signSessionToken({ role, username });
+async function recordLoginAudit(session: SessionPayload) {
+    if (session.userId) {
+        await prisma.$transaction([
+            prisma.systemUser.update({
+                where: { id: session.userId },
+                data: {
+                    lastLoginAt: new Date(),
+                },
+            }),
+            prisma.loginAudit.create({
+                data: {
+                    userId: session.userId,
+                    username: session.username,
+                    role: session.role,
+                    porteriaNombre: session.porteriaNombre ?? null,
+                },
+            }),
+        ]);
+
+        return;
+    }
+
+    await prisma.loginAudit.create({
+        data: {
+            username: session.username,
+            role: session.role,
+            porteriaNombre: session.porteriaNombre ?? null,
+        },
+    });
+}
+
+export async function authenticateCredentials(role: AppRole, username: string, password: string) {
+    const user = await prisma.systemUser.findUnique({
+        where: { username },
+        select: {
+            id: true,
+            username: true,
+            passwordHash: true,
+            role: true,
+            isActive: true,
+            porteria: {
+                select: {
+                    id: true,
+                    nombre: true,
+                },
+            },
+        },
+    });
+
+    if (user && user.isActive && user.role === role) {
+        const isPasswordValid = await verifyPassword(password, user.passwordHash);
+
+        if (isPasswordValid) {
+            const session = {
+                role,
+                username: user.username,
+                userId: user.id,
+                porteriaId: user.porteria?.id ?? null,
+                porteriaNombre: user.porteria?.nombre ?? null,
+            } satisfies SessionPayload;
+
+            await recordLoginAudit(session);
+
+            return session;
+        }
+    }
+
+    if (!isValidCredentials(role, username, password)) {
+        return null;
+    }
+
+    const legacySession = {
+        role,
+        username,
+        userId: null,
+        porteriaId: null,
+        porteriaNombre: null,
+    } satisfies SessionPayload;
+
+    await recordLoginAudit(legacySession);
+
+    return legacySession;
+}
+
+export async function createSession(session: SessionPayload) {
+    const token = await signSessionToken(session);
 
     cookies().set(SESSION_COOKIE_NAME, token, {
         httpOnly: true,

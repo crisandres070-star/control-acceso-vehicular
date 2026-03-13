@@ -1,5 +1,5 @@
 export function normalizeLicensePlate(value: string) {
-    return value.trim().toUpperCase().replace(/\s+/g, "");
+    return value.trim().toUpperCase();
 }
 
 export function normalizeInternalCode(value: string) {

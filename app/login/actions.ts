@@ -3,9 +3,9 @@
 import { redirect } from "next/navigation";
 
 import {
+    authenticateCredentials,
     createSession,
     getDashboardPath,
-    isValidCredentials,
     parseRole,
 } from "@/lib/auth";
 
@@ -18,10 +18,12 @@ export async function loginAction(formData: FormData) {
         redirect(`/login?error=${encodeURIComponent("Complete todos los campos.")}`);
     }
 
-    if (!isValidCredentials(role, username, password)) {
+    const session = await authenticateCredentials(role, username, password);
+
+    if (!session) {
         redirect(`/login?error=${encodeURIComponent("Credenciales inválidas para el rol seleccionado.")}`);
     }
 
-    await createSession(role, username);
+    await createSession(session);
     redirect(getDashboardPath(role));
 }

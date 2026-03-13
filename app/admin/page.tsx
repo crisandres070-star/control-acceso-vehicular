@@ -1,212 +1,170 @@
 import Link from "next/link";
 
-import { createVehicleAction, deleteVehicleAction } from "@/app/admin/actions";
-import { DeleteVehicleButton } from "@/components/admin/delete-vehicle-button";
-import { VehicleForm } from "@/components/admin/vehicle-form";
 import { prisma } from "@/lib/prisma";
-import { getQueryStringValue } from "@/lib/utils";
 
-type VehicleRow = {
-    id: number;
-    licensePlate: string;
-    codigoInterno: string;
-    vehicleType: string;
-    brand: string;
-    company: string;
-    accessStatus: string;
-    createdAt: Date;
+type MenuItem = {
+    title: string;
+    subtitle: string;
+    href: string;
+    accent: string;
+    detail: string;
 };
 
-type AdminPageProps = {
-    searchParams: {
-        success?: string | string[];
-        error?: string | string[];
-        formError?: string | string[];
-        savedVehicleId?: string | string[];
-    };
-};
-
-export default async function AdminPage({ searchParams }: AdminPageProps) {
-    const [vehicleRecords, totalVehicles, allowedVehicles] = await Promise.all([
-        prisma.vehicle.findMany({
-            orderBy: { createdAt: "desc" },
-        }),
+export default async function AdminPage() {
+    const [contratistasCount, vehiculosCount, choferesCount, porteriasCount, asignacionesCount, eventosHoyCount] = await Promise.all([
+        prisma.contratista.count(),
         prisma.vehicle.count(),
-        prisma.vehicle.count({ where: { accessStatus: "YES" } }),
+        prisma.chofer.count(),
+        prisma.porteria.count(),
+        prisma.vehiculoChofer.count(),
+        prisma.eventoAcceso.count({
+            where: {
+                fechaHora: {
+                    gte: new Date(new Date().setHours(0, 0, 0, 0)),
+                    lte: new Date(new Date().setHours(23, 59, 59, 999)),
+                },
+            },
+        }),
     ]);
-    const vehicles = vehicleRecords as VehicleRow[];
 
-    const blockedVehicles = totalVehicles - allowedVehicles;
-    const companiesCount = new Set(vehicles.map((vehicle) => vehicle.company)).size;
-    const success = getQueryStringValue(searchParams.success);
-    const error = getQueryStringValue(searchParams.error);
-    const formError = getQueryStringValue(searchParams.formError);
-    const savedVehicleIdValue = Number(getQueryStringValue(searchParams.savedVehicleId));
-    const savedVehicleId = Number.isInteger(savedVehicleIdValue)
-        ? savedVehicleIdValue
-        : null;
+    const menuItems: MenuItem[] = [
+        {
+            title: "Seguimiento en línea",
+            subtitle: "Operación diaria",
+            href: "/admin/control-acceso-v2",
+            accent: "border-green-200 bg-green-50/70 text-green-700",
+            detail: "Registrar ENTRADA y SALIDA del recinto.",
+        },
+        {
+            title: "Ingreso de contratista",
+            subtitle: "Administración",
+            href: "/admin/contratistas",
+            accent: "border-slate-200 bg-white text-slate-700",
+            detail: "Crear y mantener empresas contratistas.",
+        },
+        {
+            title: "Ingreso de vehículo",
+            subtitle: "Administración",
+            href: "/admin/vehiculos",
+            accent: "border-slate-200 bg-white text-slate-700",
+            detail: "Registrar y consultar el padrón vehicular.",
+        },
+        {
+            title: "Ingreso de chofer",
+            subtitle: "Administración",
+            href: "/admin/choferes",
+            accent: "border-slate-200 bg-white text-slate-700",
+            detail: "Administrar choferes asociados a contratistas.",
+        },
+        {
+            title: "Ingreso de portería",
+            subtitle: "Administración",
+            href: "/admin/porterias",
+            accent: "border-slate-200 bg-white text-slate-700",
+            detail: "Mantener puntos de control y teléfonos.",
+        },
+        {
+            title: "Búsqueda / reporte",
+            subtitle: "Seguimiento",
+            href: "/admin/eventos-acceso",
+            accent: "border-slate-200 bg-white text-slate-700",
+            detail: "Consultar eventos, filtros y exportaciones.",
+        },
+    ];
 
     return (
-        <div className="space-y-6">
-            <section className="panel p-6 lg:p-8">
-                <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
-                    <div>
+        <div className="space-y-8">
+            <section className="panel overflow-hidden">
+                <div className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-8">
+                    <div className="max-w-3xl">
                         <p className="text-xs font-semibold uppercase tracking-[0.32em] text-accent-700">
-                            Panel general
+                            Menú administración
                         </p>
-                        <h2 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950 lg:text-4xl">
-                            Panel de control de vehículos
-                        </h2>
-                        <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                            Administre altas, ediciones y bloqueos de acceso desde una vista limpia y preparada para la operación diaria.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        <a className="button-primary" href="#vehicle-form">
-                            Agregar vehículo
-                        </a>
-                        <a className="button-secondary" href="#vehicles">
-                            Ver vehículos
-                        </a>
-                        <Link className="button-secondary" href="/admin/logs">
-                            Ver accesos
-                        </Link>
-                    </div>
-                </div>
-            </section>
-
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                <div className="panel p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Vehículos totales</p>
-                    <p className="mt-3 text-4xl font-bold text-slate-950">{totalVehicles}</p>
-                    <p className="mt-2 text-sm text-slate-500">Base actual de registros habilitados para consulta.</p>
-                </div>
-                <div className="panel border-green-100 bg-green-50/60 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Con acceso</p>
-                    <p className="mt-3 text-4xl font-bold text-green-600">{allowedVehicles}</p>
-                    <p className="mt-2 text-sm text-slate-500">Vehículos configurados para ingreso permitido.</p>
-                </div>
-                <div className="panel border-red-100 bg-red-50/50 p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Sin acceso</p>
-                    <p className="mt-3 text-4xl font-bold text-red-600">{blockedVehicles}</p>
-                    <p className="mt-2 text-sm text-slate-500">Patentes registradas con denegación de entrada.</p>
-                </div>
-                <div className="panel p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-500">Empresas</p>
-                    <p className="mt-3 text-4xl font-bold text-slate-950">{companiesCount}</p>
-                    <p className="mt-2 text-sm text-slate-500">Organizaciones asociadas a los registros activos.</p>
-                </div>
-            </section>
-
-            {success && savedVehicleId === null ? (
-                <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
-                    {decodeURIComponent(success)}
-                </div>
-            ) : null}
-
-            {error ? (
-                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                    {decodeURIComponent(error)}
-                </div>
-            ) : null}
-
-            <section className="panel overflow-hidden scroll-mt-28" id="vehicles">
-                <div className="flex flex-col gap-3 border-b border-slate-200/70 bg-slate-50/70 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent-700">
-                            Registros
-                        </p>
-                        <h2 className="mt-3 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950 lg:text-3xl">
-                            Gestión de vehículos
-                        </h2>
-                        <p className="mt-2 text-sm text-slate-600">
-                            Visualice cada patente con acciones rápidas de edición y eliminación.
+                        <h1 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950 lg:text-4xl">
+                            Administración del sistema
+                        </h1>
+                        <p className="mt-3 text-sm leading-6 text-slate-600 lg:text-base">
+                            Seleccione el módulo que necesita para ingresar información manualmente desde la web o para revisar el seguimiento del sistema.
                         </p>
                     </div>
-                    <Link className="button-secondary" href="/admin/logs">
-                        Registros de acceso
-                    </Link>
-                </div>
 
-                {success && savedVehicleId !== null ? (
-                    <div className="border-b border-slate-200/70 bg-green-50/80 px-6 py-4 lg:px-8" aria-live="polite">
-                        <div className="rounded-2xl border border-green-200 bg-white/75 px-4 py-3 text-sm font-medium text-green-700">
-                            {decodeURIComponent(success)}
+                    <div className="grid gap-2 text-sm text-slate-500 sm:grid-cols-2 lg:min-w-[320px]">
+                        <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+                            Flujo principal: administración manual
+                        </div>
+                        <div className="rounded-[20px] border border-slate-200/80 bg-slate-50/80 px-4 py-3">
+                            Excel e IA: fuera del flujo principal
                         </div>
                     </div>
-                ) : null}
-
-                <div className="overflow-x-auto px-3 pb-3 pt-3 sm:px-4 sm:pb-4">
-                    <table className="min-w-full overflow-hidden rounded-[24px] text-sm">
-                        <thead className="bg-slate-100/90 text-left text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                            <tr>
-                                <th className="px-6 py-4">Código interno</th>
-                                <th className="px-6 py-4">Patente</th>
-                                <th className="px-6 py-4">Tipo de vehículo</th>
-                                <th className="px-6 py-4">Marca</th>
-                                <th className="px-6 py-4">Empresa</th>
-                                <th className="px-6 py-4">Estado de acceso</th>
-                                <th className="px-6 py-4">Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-100 bg-white">
-                            {vehicles.map((vehicle) => {
-                                const isSavedVehicle = savedVehicleId === vehicle.id;
-
-                                return (
-                                    <tr
-                                        className={`transition hover:bg-slate-50/80 ${isSavedVehicle ? "saved-vehicle-row" : ""}`}
-                                        id={`vehicle-${vehicle.id}`}
-                                        key={vehicle.id}
-                                    >
-                                        <td className="px-6 py-5 font-semibold tracking-[0.18em] text-slate-700">{vehicle.codigoInterno}</td>
-                                        <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{vehicle.licensePlate}</td>
-                                        <td className="px-6 py-5 text-slate-600">{vehicle.vehicleType}</td>
-                                        <td className="px-6 py-5 text-slate-600">{vehicle.brand}</td>
-                                        <td className="px-6 py-5 text-slate-600">{vehicle.company}</td>
-                                        <td className="px-6 py-5">
-                                            <span
-                                                className={`status-pill ${vehicle.accessStatus === "YES"
-                                                    ? "bg-green-500 text-white"
-                                                    : "bg-red-500 text-white"
-                                                    }`}
-                                            >
-                                                {vehicle.accessStatus === "YES" ? "PERMITIDO" : "BLOQUEADO"}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-5">
-                                            <div className="flex flex-wrap gap-3">
-                                                <Link className="inline-flex items-center rounded-full bg-accent-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.18em] text-accent-700 transition hover:bg-accent-100" href={`/admin/vehicles/${vehicle.id}/edit`}>
-                                                    Editar
-                                                </Link>
-                                                <DeleteVehicleButton action={deleteVehicleAction} licensePlate={vehicle.licensePlate} vehicleId={vehicle.id} />
-                                            </div>
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                            {vehicles.length === 0 ? (
-                                <tr>
-                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={7}>
-                                        No hay vehículos registrados todavía.
-                                    </td>
-                                </tr>
-                            ) : null}
-                        </tbody>
-                    </table>
                 </div>
             </section>
 
-            <VehicleForm
-                action={createVehicleAction}
-                description="Complete la ficha del vehículo con datos claros para una operación rápida en portería y auditoría administrativa."
-                errorMessage={formError}
-                heading="Agregar vehículo"
-                id="vehicle-form"
-                key={savedVehicleId !== null ? `create-form-${savedVehicleId}` : "create-form"}
-                submitLabel="Guardar vehículo"
-            />
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+                {menuItems.map((item) => (
+                    <Link className="panel block px-5 py-5 transition hover:border-slate-300 hover:shadow-md lg:px-6 lg:py-6" href={item.href} key={item.title}>
+                        <div className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${item.accent}`}>
+                            {item.subtitle}
+                        </div>
+                        <h2 className="mt-4 text-xl font-semibold text-slate-950">{item.title}</h2>
+                        <p className="mt-2 text-sm leading-6 text-slate-500">{item.detail}</p>
+                        <p className="mt-5 text-sm font-semibold text-accent-700">Abrir módulo</p>
+                    </Link>
+                ))}
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.8fr)]">
+                <section className="panel overflow-hidden">
+                    <div className="border-b border-slate-200/70 px-6 py-5 lg:px-8">
+                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent-700">
+                            Flujo operativo
+                        </p>
+                        <h2 className="mt-3 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950">
+                            Secuencia recomendada
+                        </h2>
+                    </div>
+
+                    <div className="grid gap-3 px-6 py-6 md:grid-cols-2 lg:px-8 lg:py-8">
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">1. Ingreso de contratista</div>
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">2. Ingreso de vehículo</div>
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">3. Ingreso de chofer</div>
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">4. Asignación de chofer</div>
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">5. Seguimiento en línea</div>
+                        <div className="rounded-[22px] border border-slate-200/80 bg-slate-50/70 px-4 py-4 text-sm text-slate-700">6. Búsqueda y reporte</div>
+                    </div>
+                </section>
+
+                <aside className="panel px-5 py-5 lg:px-6 lg:py-6">
+                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
+                        Resumen general
+                    </p>
+                    <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Contratistas</span>
+                            <span className="text-lg font-semibold text-slate-950">{contratistasCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Vehículos</span>
+                            <span className="text-lg font-semibold text-slate-950">{vehiculosCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Choferes</span>
+                            <span className="text-lg font-semibold text-slate-950">{choferesCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Porterías</span>
+                            <span className="text-lg font-semibold text-slate-950">{porteriasCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Asignaciones</span>
+                            <span className="text-lg font-semibold text-slate-950">{asignacionesCount}</span>
+                        </div>
+                        <div className="flex items-center justify-between rounded-[20px] border border-slate-200/80 bg-slate-50/70 px-4 py-3">
+                            <span className="text-sm text-slate-600">Eventos de hoy</span>
+                            <span className="text-lg font-semibold text-slate-950">{eventosHoyCount}</span>
+                        </div>
+                    </div>
+                </aside>
+            </section>
         </div>
     );
 }

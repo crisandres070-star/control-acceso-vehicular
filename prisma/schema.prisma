@@ -7,19 +7,177 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum TipoEventoAcceso {
+  ENTRADA
+  SALIDA
+}
+
+enum EstadoRecintoVehiculo {
+  DENTRO
+  FUERA
+}
+
+enum UserRole {
+  ADMIN
+  USER
+}
+
 model Vehicle {
-  id            Int      @id @default(autoincrement())
-  name          String
-  licensePlate  String   @unique @map("license_plate")
-  codigoInterno String   @default("PENDIENTE") @map("codigo_interno")
-  rut           String   @unique
-  vehicleType   String   @map("vehicle_type")
-  brand         String
-  company       String
-  accessStatus  String   @map("access_status")
-  createdAt     DateTime @default(now()) @map("created_at")
+  id               Int                    @id @default(autoincrement())
+  name             String
+  licensePlate     String                 @unique @map("license_plate")
+  codigoInterno    String                 @default("PENDIENTE") @map("codigo_interno")
+  rut              String                 @unique
+  vehicleType      String                 @map("vehicle_type")
+  brand            String
+  company          String
+  accessStatus     String                 @map("access_status")
+  createdAt        DateTime               @default(now()) @map("created_at")
+  contratistaId    Int?                   @map("contratista_id")
+  modelo           String?
+  estadoRecinto    EstadoRecintoVehiculo? @map("estado_recinto")
+  updatedAt        DateTime               @default(now()) @updatedAt @map("updated_at")
+
+  contratista      Contratista?          @relation(fields: [contratistaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  vehiculoChoferes VehiculoChofer[]
+  eventosAcceso    EventoAcceso[]
+
+  @@index([codigoInterno])
+  @@index([contratistaId])
+  @@index([estadoRecinto])
 
   @@map("vehicles")
+}
+
+model Contratista {
+  id            Int            @id @default(autoincrement())
+  razonSocial   String         @map("razon_social")
+  rut           String         @unique
+  email         String?
+  contacto      String?
+  telefono      String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  vehiculos     Vehicle[]
+  choferes      Chofer[]
+  eventosAcceso EventoAcceso[]
+
+  @@index([razonSocial])
+  @@map("contratistas")
+}
+
+model Chofer {
+  id               Int              @id @default(autoincrement())
+  contratistaId    Int              @map("contratista_id")
+  nombre           String
+  rut              String           @unique
+  codigoInterno    String?          @map("codigo_interno")
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @default(now()) @updatedAt @map("updated_at")
+
+  contratista      Contratista      @relation(fields: [contratistaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  vehiculoChoferes VehiculoChofer[]
+  eventosAcceso    EventoAcceso[]
+
+  @@index([contratistaId])
+  @@unique([contratistaId, codigoInterno])
+  @@map("choferes")
+}
+
+model Porteria {
+  id            Int            @id @default(autoincrement())
+  nombre        String         @unique
+  telefono      String?
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
+
+  eventosAcceso EventoAcceso[]
+  usuariosSistema SystemUser[] @relation("SystemUserPorteria")
+
+  @@map("porterias")
+}
+
+model SystemUser {
+  id            Int           @id @default(autoincrement())
+  username      String        @unique
+  passwordHash  String        @map("password_hash")
+  role          UserRole
+  porteriaId    Int?          @map("porteria_id")
+  isActive      Boolean       @default(true) @map("is_active")
+  lastLoginAt   DateTime?     @map("last_login_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  porteria            Porteria?      @relation("SystemUserPorteria", fields: [porteriaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  loginAudits         LoginAudit[]
+  accessLogsOperados  AccessLog[]    @relation("AccessLogOperatorUser")
+  eventosOperados     EventoAcceso[] @relation("EventoAccesoOperatorUser")
+
+  @@index([role])
+  @@index([porteriaId])
+  @@map("system_users")
+}
+
+model LoginAudit {
+  id              Int           @id @default(autoincrement())
+  userId          Int?          @map("user_id")
+  username        String
+  role            UserRole
+  porteriaNombre  String?       @map("porteria_nombre")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  user            SystemUser?   @relation(fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([username, createdAt])
+  @@index([createdAt])
+  @@map("login_audits")
+}
+
+model VehiculoChofer {
+  id         Int      @id @default(autoincrement())
+  vehiculoId Int      @map("vehiculo_id")
+  choferId   Int      @map("chofer_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  vehiculo   Vehicle  @relation(fields: [vehiculoId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  chofer     Chofer   @relation(fields: [choferId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@unique([vehiculoId, choferId])
+  @@index([choferId])
+  @@map("vehiculo_choferes")
+}
+
+model EventoAcceso {
+  id            Int               @id @default(autoincrement())
+  vehiculoId    Int               @map("vehiculo_id")
+  contratistaId Int               @map("contratista_id")
+  choferId      Int?              @map("chofer_id")
+  porteriaId    Int               @map("porteria_id")
+  operadoPorId  Int?              @map("operado_por_id")
+  operadoPorUsername String?      @map("operado_por_username")
+  operadoPorRole UserRole?        @map("operado_por_role")
+  operadoPorPorteriaNombre String? @map("operado_por_porteria_nombre")
+  tipoEvento    TipoEventoAcceso  @map("tipo_evento")
+  fechaHora     DateTime          @default(now()) @map("fecha_hora")
+  observacion   String?
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  vehiculo      Vehicle           @relation(fields: [vehiculoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  contratista   Contratista       @relation(fields: [contratistaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  chofer        Chofer?           @relation(fields: [choferId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  porteria      Porteria          @relation(fields: [porteriaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  operadoPor    SystemUser?       @relation("EventoAccesoOperatorUser", fields: [operadoPorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([fechaHora])
+  @@index([vehiculoId, fechaHora])
+  @@index([contratistaId, fechaHora])
+  @@index([choferId, fechaHora])
+  @@index([porteriaId, fechaHora])
+  @@index([operadoPorId, fechaHora])
+  @@index([tipoEvento, fechaHora])
+  @@map("eventos_acceso")
 }
 
 model AccessLog {
@@ -28,8 +186,45 @@ model AccessLog {
   codigoInterno String? @map("codigo_interno")
   name          String
   result        String
+  operatorUserId Int?    @map("operator_user_id")
+  operatorUsername String? @map("operator_username")
+  operatorRole  UserRole? @map("operator_role")
+  operatorPorteriaNombre String? @map("operator_porteria_nombre")
   createdAt     DateTime @default(now()) @map("created_at")
 
+  operatorUser  SystemUser? @relation("AccessLogOperatorUser", fields: [operatorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
   @@index([licensePlate])
+  @@index([operatorUserId, createdAt])
   @@map("access_logs")
+}
+
+model ImportacionPreview {
+  id            String   @id @default(cuid())
+  ownerUsername String   @map("owner_username")
+  fileName      String   @map("file_name")
+  parsedJson    Json     @map("parsed_json")
+  previewJson   Json     @map("preview_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([ownerUsername, expiresAt])
+  @@index([expiresAt])
+  @@map("importaciones_preview")
+}
+
+model ImportacionAiAnalisis {
+  id            String   @id @default(cuid())
+  ownerUsername String   @map("owner_username")
+  fileName      String   @map("file_name")
+  workbookJson  Json     @map("workbook_json")
+  analysisJson  Json     @map("analysis_json")
+  createdAt     DateTime @default(now()) @map("created_at")
+  expiresAt     DateTime @map("expires_at")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([ownerUsername, expiresAt])
+  @@index([expiresAt])
+  @@map("importaciones_ai_analisis")
 }

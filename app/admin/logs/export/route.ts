@@ -2,6 +2,17 @@ import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
+import {
+    buildExportSuffix,
+    createCsvExportResponse,
+    createExcelExportResponse,
+    formatExportDate,
+    formatExportDateTime,
+    formatExportTime,
+    inferStatusTone,
+    parseExportFormat,
+    type ExportColumn,
+} from "@/lib/export-utils";
 import { prisma } from "@/lib/prisma";
 import { buildCreatedAtFilter, normalizeLicensePlate, parseDateInput } from "@/lib/utils";
 
@@ -12,6 +23,9 @@ type AccessLogExportRow = {
     licensePlate: string;
     codigoInterno: string | null;
     result: string;
+    operatorUsername: string | null;
+    operatorRole: "ADMIN" | "USER" | null;
+    operatorPorteriaNombre: string | null;
     createdAt: Date;
 };
 
@@ -22,7 +36,64 @@ type VehicleExportLookup = {
     brand: string;
     company: string;
     accessStatus: string;
+    contratista: {
+        razonSocial: string;
+    } | null;
 };
+
+type AccessLogSheetRow = {
+    fecha: string;
+    hora: string;
+    patente: string;
+    numeroInterno: string;
+    empresa: string;
+    contratista: string;
+    chofer: string;
+    rutChofer: string;
+    porteria: string;
+    tipoVehiculo: string;
+    marca: string;
+    estadoAcceso: string;
+    resultado: string;
+    tipoEvento: string;
+    usuarioOperador: string;
+    rolOperador: string;
+    porteriaOperador: string;
+};
+
+const columns = [
+    { header: "Fecha", key: "fecha", width: 14, value: (row) => row.fecha, alignment: "center" },
+    { header: "Hora", key: "hora", width: 12, value: (row) => row.hora, alignment: "center" },
+    { header: "Patente", key: "patente", width: 16, value: (row) => row.patente },
+    { header: "N° interno", key: "numeroInterno", width: 18, value: (row) => row.numeroInterno },
+    { header: "Empresa", key: "empresa", width: 24, value: (row) => row.empresa },
+    { header: "Contratista", key: "contratista", width: 28, value: (row) => row.contratista },
+    { header: "Chofer", key: "chofer", width: 24, value: (row) => row.chofer },
+    { header: "RUT chofer", key: "rutChofer", width: 18, value: (row) => row.rutChofer },
+    { header: "Portería", key: "porteria", width: 18, value: (row) => row.porteria },
+    { header: "Tipo de vehículo", key: "tipoVehiculo", width: 20, value: (row) => row.tipoVehiculo },
+    { header: "Marca", key: "marca", width: 18, value: (row) => row.marca },
+    {
+        header: "Estado / resultado",
+        key: "estadoAcceso",
+        width: 18,
+        value: (row) => row.estadoAcceso,
+        alignment: "center",
+        tone: (_row, value) => inferStatusTone(value),
+    },
+    {
+        header: "Resultado final",
+        key: "resultado",
+        width: 18,
+        value: (row) => row.resultado,
+        alignment: "center",
+        tone: (_row, value) => inferStatusTone(value),
+    },
+    { header: "Tipo de evento", key: "tipoEvento", width: 20, value: (row) => row.tipoEvento, alignment: "center" },
+    { header: "Usuario operador", key: "usuarioOperador", width: 24, value: (row) => row.usuarioOperador },
+    { header: "Rol operador", key: "rolOperador", width: 16, value: (row) => row.rolOperador, alignment: "center" },
+    { header: "Portería asociada operador", key: "porteriaOperador", width: 24, value: (row) => row.porteriaOperador },
+] satisfies ExportColumn<AccessLogSheetRow>[];
 
 function formatVehicleValue(value: string | null | undefined) {
     if (!value || value === "Not registered") {
@@ -52,18 +123,6 @@ function formatAccessStatusLabel(accessStatus: string | undefined) {
     return "No registrado";
 }
 
-function formatExportDate(value: Date) {
-    return new Intl.DateTimeFormat("es-CL", {
-        dateStyle: "short",
-    }).format(value);
-}
-
-function formatExportTime(value: Date) {
-    return new Intl.DateTimeFormat("es-CL", {
-        timeStyle: "short",
-    }).format(value);
-}
-
 export async function GET(request: Request) {
     const session = await getSession();
 
@@ -89,12 +148,23 @@ export async function GET(request: Request) {
     }
 
     const whereInput = Object.keys(where).length > 0 ? where : undefined;
+    const format = parseExportFormat(searchParams.get("format"), "xlsx");
 
     const logRecords = await prisma.accessLog.findMany({
         where: whereInput,
         orderBy: { createdAt: "desc" },
+        select: {
+            id: true,
+            licensePlate: true,
+            codigoInterno: true,
+            result: true,
+            operatorUsername: true,
+            operatorRole: true,
+            operatorPorteriaNombre: true,
+            createdAt: true,
+        },
     });
-    const logs = logRecords as AccessLogExportRow[];
+    const logs = logRecords as unknown as AccessLogExportRow[];
     const uniquePlates = Array.from(new Set(logs.map((log) => log.licensePlate)));
     const vehicleRecords = uniquePlates.length > 0
         ? await prisma.vehicle.findMany({
@@ -106,6 +176,11 @@ export async function GET(request: Request) {
                 brand: true,
                 company: true,
                 accessStatus: true,
+                contratista: {
+                    select: {
+                        razonSocial: true,
+                    },
+                },
             },
         })
         : [];
@@ -114,105 +189,51 @@ export async function GET(request: Request) {
         vehicles.map((vehicle) => [vehicle.licensePlate, vehicle]),
     );
 
-    const { Workbook } = await import("exceljs");
-    const workbook = new Workbook();
-    workbook.creator = "Verix";
-    workbook.created = new Date();
-
-    const worksheet = workbook.addWorksheet("Bitácora de accesos", {
-        views: [{ state: "frozen", ySplit: 1 }],
-    });
-
-    worksheet.columns = [
-        { header: "Código interno", key: "codigoInterno", width: 18 },
-        { header: "Patente", key: "licensePlate", width: 14 },
-        { header: "Tipo de vehículo", key: "vehicleType", width: 20 },
-        { header: "Marca", key: "brand", width: 18 },
-        { header: "Empresa", key: "company", width: 24 },
-        { header: "Estado de acceso", key: "accessStatus", width: 18 },
-        { header: "Resultado", key: "result", width: 16 },
-        { header: "Fecha", key: "date", width: 14 },
-        { header: "Hora", key: "time", width: 12 },
-    ];
-
-    const headerRow = worksheet.getRow(1);
-    headerRow.height = 24;
-    headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    headerRow.alignment = { horizontal: "center", vertical: "middle" };
-
-    headerRow.eachCell((cell) => {
-        cell.fill = {
-            type: "pattern",
-            pattern: "solid",
-            fgColor: { argb: "FF4E0BD9" },
-        };
-        cell.border = {
-            top: { style: "thin", color: { argb: "FFD9E2EC" } },
-            left: { style: "thin", color: { argb: "FFD9E2EC" } },
-            bottom: { style: "thin", color: { argb: "FFD9E2EC" } },
-            right: { style: "thin", color: { argb: "FFD9E2EC" } },
-        };
-    });
-
-    worksheet.autoFilter = {
-        from: { row: 1, column: 1 },
-        to: { row: 1, column: worksheet.columns.length },
-    };
-
-    for (const log of logs) {
-        const vehicle = vehicleByPlate.get(log.licensePlate);
-        const isGranted = log.result === "YES";
-        const row = worksheet.addRow({
-            codigoInterno: formatVehicleValue(log.codigoInterno ?? vehicle?.codigoInterno),
-            licensePlate: formatVehicleValue(log.licensePlate),
-            vehicleType: formatVehicleValue(vehicle?.vehicleType),
-            brand: formatVehicleValue(vehicle?.brand),
-            company: formatVehicleValue(vehicle?.company),
-            accessStatus: formatAccessStatusLabel(vehicle?.accessStatus),
-            result: formatResultLabel(log.result),
-            date: formatExportDate(log.createdAt),
-            time: formatExportTime(log.createdAt),
-        });
-
-        row.eachCell((cell, columnNumber) => {
-            cell.alignment = {
-                vertical: "middle",
-                horizontal: columnNumber >= 6 ? "center" : "left",
-            };
-            cell.border = {
-                top: { style: "thin", color: { argb: "FFE2E8F0" } },
-                left: { style: "thin", color: { argb: "FFE2E8F0" } },
-                bottom: { style: "thin", color: { argb: "FFE2E8F0" } },
-                right: { style: "thin", color: { argb: "FFE2E8F0" } },
-            };
-            cell.fill = {
-                type: "pattern",
-                pattern: "solid",
-                fgColor: { argb: isGranted ? "FFE8F5E9" : "FFFDECEC" },
-            };
-        });
-
-        row.getCell(7).font = {
-            bold: true,
-            color: { argb: isGranted ? "FF166534" : "FFB91C1C" },
-        };
-    }
-
     const suffixParts = [
         plate,
         startDate ? `from-${startDate}` : "",
         endDate ? `to-${endDate}` : "",
     ].filter(Boolean);
-    const suffix = suffixParts.length > 0 ? `-${suffixParts.join("-")}` : "";
-    const workbookBuffer = await workbook.xlsx.writeBuffer();
-    const responseBody = workbookBuffer instanceof ArrayBuffer
-        ? workbookBuffer
-        : new Uint8Array(workbookBuffer);
+    const suffix = buildExportSuffix(suffixParts);
+    const filename = `bitacora-accesos${suffix}`;
+    const rows: AccessLogSheetRow[] = logs.map((log) => {
+        const vehicle = vehicleByPlate.get(log.licensePlate);
 
-    return new NextResponse(responseBody, {
-        headers: {
-            "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "Content-Disposition": `attachment; filename="bitacora-accesos${suffix}.xlsx"`,
-        },
+        return {
+            fecha: formatExportDate(log.createdAt),
+            hora: formatExportTime(log.createdAt),
+            patente: formatVehicleValue(log.licensePlate),
+            numeroInterno: formatVehicleValue(log.codigoInterno ?? vehicle?.codigoInterno),
+            empresa: formatVehicleValue(vehicle?.company),
+            contratista: vehicle?.contratista?.razonSocial ?? "No informado",
+            chofer: "No informado en bitácora legacy",
+            rutChofer: "No informado",
+            porteria: "No informada",
+            tipoVehiculo: formatVehicleValue(vehicle?.vehicleType),
+            marca: formatVehicleValue(vehicle?.brand),
+            estadoAcceso: formatAccessStatusLabel(vehicle?.accessStatus),
+            resultado: formatResultLabel(log.result),
+            tipoEvento: "Validación de acceso",
+            usuarioOperador: log.operatorUsername ?? "No informado",
+            rolOperador: log.operatorRole === "ADMIN" ? "Administrador" : log.operatorRole === "USER" ? "Portería" : "No informado",
+            porteriaOperador: log.operatorPorteriaNombre ?? "Sin asociación",
+        };
+    });
+
+    if (format === "csv") {
+        return createCsvExportResponse({
+            filename,
+            columns,
+            rows,
+        });
+    }
+
+    return createExcelExportResponse({
+        filename,
+        sheetName: "Bitácora de accesos",
+        title: "Bitácora de accesos",
+        subtitle: `Generado el ${formatExportDateTime(new Date())}. Consolidado de validaciones legacy con información del vehículo relacionada cuando existe.`,
+        columns,
+        rows,
     });
 }

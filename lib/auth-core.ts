@@ -2,9 +2,12 @@ import { SignJWT, jwtVerify } from "jose";
 
 export type AppRole = "ADMIN" | "USER";
 
-type SessionPayload = {
+export type SessionPayload = {
     role: AppRole;
     username: string;
+    userId?: number | null;
+    porteriaId?: number | null;
+    porteriaNombre?: string | null;
 };
 
 export const SESSION_COOKIE_NAME = "vehicle-access-session";
@@ -64,7 +67,23 @@ export async function verifySessionToken(token: string) {
             return null;
         }
 
-        return payload as SessionPayload;
+        const userId = typeof payload.userId === "number" && Number.isInteger(payload.userId) && payload.userId > 0
+            ? payload.userId
+            : null;
+        const porteriaId = typeof payload.porteriaId === "number" && Number.isInteger(payload.porteriaId) && payload.porteriaId > 0
+            ? payload.porteriaId
+            : null;
+        const porteriaNombre = typeof payload.porteriaNombre === "string" && payload.porteriaNombre.trim()
+            ? payload.porteriaNombre
+            : null;
+
+        return {
+            role: payload.role,
+            username: payload.username,
+            userId,
+            porteriaId,
+            porteriaNombre,
+        } satisfies SessionPayload;
     } catch {
         return null;
     }

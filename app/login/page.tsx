@@ -42,7 +42,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
                             Ingresar al sistema
                         </h1>
                         <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-slate-600">
-                            Seleccione el rol y use las credenciales configuradas en su entorno para acceder de forma segura.
+                            Seleccione el rol y use las credenciales registradas para acceder de forma segura al sistema.
                         </p>
                     </div>
                     {error ? (

@@ -16,18 +16,36 @@ import {
 } from "@/lib/utils";
 
 type VehicleInput = {
+    contratistaId: number;
     licensePlate: string;
     codigoInterno: string;
     vehicleType: string;
     brand: string;
-    company: string;
     accessStatus: AccessDecision;
 };
 
-const VEHICLE_CREATED_MESSAGE = "Vehículo guardado exitosamente";
-const VEHICLE_UPDATED_MESSAGE = "Vehículo actualizado exitosamente";
+const VEHICLE_CREATED_MESSAGE = "Vehículo creado correctamente.";
+const VEHICLE_UPDATED_MESSAGE = "Vehículo actualizado correctamente.";
+const VEHICLE_DELETED_MESSAGE = "Vehículo eliminado correctamente.";
+
+async function getContratistaForVehicle(contratistaId: number) {
+    const contratista = await prisma.contratista.findUnique({
+        where: { id: contratistaId },
+        select: {
+            id: true,
+            razonSocial: true,
+        },
+    });
+
+    if (!contratista) {
+        throw new Error("Debe seleccionar un contratista válido.");
+    }
+
+    return contratista;
+}
 
 function parseVehicleInput(formData: FormData): VehicleInput {
+    const contratistaId = Number(formData.get("contratistaId"));
     const licensePlate = normalizeLicensePlate(
         String(formData.get("licensePlate") ?? ""),
     );
@@ -36,13 +54,28 @@ function parseVehicleInput(formData: FormData): VehicleInput {
     );
     const vehicleType = String(formData.get("vehicleType") ?? "").trim();
     const brand = String(formData.get("brand") ?? "").trim();
-    const company = String(formData.get("company") ?? "").trim();
     const accessStatusInput = String(formData.get("accessStatus") ?? "NO");
     const accessStatus: AccessDecision =
         accessStatusInput === "YES" ? "YES" : "NO";
 
-    if (!licensePlate || !codigoInterno || !vehicleType || !brand || !company) {
-        throw new Error("Patente, Código interno, tipo de vehículo, marca y empresa son obligatorios.");
+    if (!Number.isInteger(contratistaId) || contratistaId <= 0) {
+        throw new Error("Debe seleccionar un contratista válido.");
+    }
+
+    if (!licensePlate) {
+        throw new Error("La patente es obligatoria.");
+    }
+
+    if (!codigoInterno) {
+        throw new Error("El Código interno es obligatorio.");
+    }
+
+    if (!vehicleType) {
+        throw new Error("El Tipo de vehículo es obligatorio.");
+    }
+
+    if (!brand) {
+        throw new Error("La Marca es obligatoria.");
     }
 
     if (!isAlphanumericCode(codigoInterno)) {
@@ -50,11 +83,11 @@ function parseVehicleInput(formData: FormData): VehicleInput {
     }
 
     return {
+        contratistaId,
         licensePlate,
         codigoInterno,
         vehicleType,
         brand,
-        company,
         accessStatus,
     };
 }
@@ -69,16 +102,26 @@ function buildSystemVehicleIdentity(licensePlate: string) {
 }
 
 function getActionErrorMessage(error: unknown) {
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        const target = Array.isArray(error.meta?.target)
-            ? error.meta?.target.join(",")
-            : String(error.meta?.target ?? "");
+    if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === "P2002") {
+            const target = Array.isArray(error.meta?.target)
+                ? error.meta?.target.join(",")
+                : String(error.meta?.target ?? "");
 
-        if (target.includes("licensePlate") || target.includes("license_plate")) {
-            return "Ya existe un vehículo con esa patente.";
+            if (target.includes("licensePlate") || target.includes("license_plate")) {
+                return "Ya existe un vehículo con esa patente.";
+            }
+
+            return "Ya existe un vehículo con datos duplicados.";
         }
 
-        return "Ya existe un vehículo con datos duplicados.";
+        if (error.code === "P2003") {
+            return "No se puede eliminar el vehículo porque tiene choferes asignados o eventos de acceso relacionados.";
+        }
+
+        if (error.code === "P2025") {
+            return "No se encontró el vehículo solicitado.";
+        }
     }
 
     if (error instanceof Error) {
@@ -88,6 +131,21 @@ function getActionErrorMessage(error: unknown) {
     return "Ocurrió un error inesperado al guardar el vehículo.";
 }
 
+function revalidateVehiclePaths(id?: number) {
+    revalidatePath("/admin");
+    revalidatePath("/admin/vehiculos");
+    revalidatePath("/admin/vehiculos/nuevo");
+    revalidatePath("/admin/asignaciones");
+    revalidatePath("/admin/control-acceso-v2");
+    revalidatePath("/admin/eventos-acceso");
+    revalidatePath("/guard/v2");
+
+    if (id) {
+        revalidatePath(`/admin/vehicles/${id}/edit`);
+        revalidatePath(`/admin/vehiculos/${id}/editar`);
+    }
+}
+
 export async function createVehicleAction(formData: FormData) {
     await requireRole("ADMIN");
 
@@ -95,21 +153,28 @@ export async function createVehicleAction(formData: FormData) {
 
     try {
         const input = parseVehicleInput(formData);
+        const contratista = await getContratistaForVehicle(input.contratistaId);
         const systemIdentity = buildSystemVehicleIdentity(input.licensePlate);
         const vehicle = await prisma.vehicle.create({
             data: {
-                ...input,
+                licensePlate: input.licensePlate,
+                codigoInterno: input.codigoInterno,
+                vehicleType: input.vehicleType,
+                brand: input.brand,
+                accessStatus: input.accessStatus,
+                company: contratista.razonSocial,
+                contratistaId: contratista.id,
                 ...systemIdentity,
             },
             select: { id: true },
         });
         vehicleId = vehicle.id;
     } catch (error) {
-        redirect(`/admin?formError=${encodeURIComponent(getActionErrorMessage(error))}#vehicle-form`);
+        redirect(`/admin/vehiculos/nuevo?error=${encodeURIComponent(getActionErrorMessage(error))}#vehiculo-form`);
     }
 
-    revalidatePath("/admin");
-    redirect(`/admin?success=${encodeURIComponent(VEHICLE_CREATED_MESSAGE)}&savedVehicleId=${vehicleId}#vehicles`);
+    revalidateVehiclePaths(vehicleId);
+    redirect(`/admin/vehiculos?success=${encodeURIComponent(VEHICLE_CREATED_MESSAGE)}&savedVehicleId=${vehicleId}#vehiculos`);
 }
 
 export async function updateVehicleAction(id: number, formData: FormData) {
@@ -117,6 +182,7 @@ export async function updateVehicleAction(id: number, formData: FormData) {
 
     try {
         const input = parseVehicleInput(formData);
+        const contratista = await getContratistaForVehicle(input.contratistaId);
         const existingVehicle = await prisma.vehicle.findUnique({
             where: { id },
             select: {
@@ -132,20 +198,25 @@ export async function updateVehicleAction(id: number, formData: FormData) {
         await prisma.vehicle.update({
             where: { id },
             data: {
-                ...input,
+                licensePlate: input.licensePlate,
+                codigoInterno: input.codigoInterno,
+                vehicleType: input.vehicleType,
+                brand: input.brand,
+                accessStatus: input.accessStatus,
+                company: contratista.razonSocial,
+                contratistaId: contratista.id,
                 name: existingVehicle.name,
                 rut: existingVehicle.rut,
             },
         });
     } catch (error) {
         redirect(
-            `/admin/vehicles/${id}/edit?error=${encodeURIComponent(getActionErrorMessage(error))}#edit-vehicle-form`,
+            `/admin/vehiculos/${id}/editar?error=${encodeURIComponent(getActionErrorMessage(error))}#edit-vehicle-form`,
         );
     }
 
-    revalidatePath("/admin");
-    revalidatePath(`/admin/vehicles/${id}/edit`);
-    redirect(`/admin?success=${encodeURIComponent(VEHICLE_UPDATED_MESSAGE)}&savedVehicleId=${id}#vehicles`);
+    revalidateVehiclePaths(id);
+    redirect(`/admin/vehiculos?success=${encodeURIComponent(VEHICLE_UPDATED_MESSAGE)}&savedVehicleId=${id}#vehiculos`);
 }
 
 export async function deleteVehicleAction(formData: FormData) {
@@ -154,10 +225,15 @@ export async function deleteVehicleAction(formData: FormData) {
     const id = Number(formData.get("id"));
 
     if (!Number.isInteger(id)) {
-        redirect(`/admin?error=${encodeURIComponent("Identificador de vehículo inválido.")}`);
+        redirect(`/admin/vehiculos?error=${encodeURIComponent("Identificador de vehículo inválido.")}`);
     }
 
-    await prisma.vehicle.delete({ where: { id } });
-    revalidatePath("/admin");
-    redirect(`/admin?success=${encodeURIComponent("Vehículo eliminado correctamente.")}`);
+    try {
+        await prisma.vehicle.delete({ where: { id } });
+    } catch (error) {
+        redirect(`/admin/vehiculos?error=${encodeURIComponent(getActionErrorMessage(error))}`);
+    }
+
+    revalidateVehiclePaths(id);
+    redirect(`/admin/vehiculos?success=${encodeURIComponent(VEHICLE_DELETED_MESSAGE)}`);
 }
