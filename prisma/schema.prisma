@@ -12,6 +12,7 @@ enum TipoEventoAcceso {
   SALIDA
 }
 
+/// Equivalente funcional de Tbl_EstadoVehiculo del diagrama Access.
 enum EstadoRecintoVehiculo {
   DENTRO
   FUERA
@@ -22,6 +23,7 @@ enum UserRole {
   USER
 }
 
+/// Equivalente funcional de Tbl_Vehiculo.
 model Vehicle {
   id               Int                    @id @default(autoincrement())
   name             String
@@ -49,6 +51,7 @@ model Vehicle {
   @@map("vehicles")
 }
 
+/// Equivalente funcional de Tbl_Contratista.
 model Contratista {
   id            Int            @id @default(autoincrement())
   razonSocial   String         @map("razon_social")
@@ -67,6 +70,7 @@ model Contratista {
   @@map("contratistas")
 }
 
+/// Equivalente funcional de Tbl_Chofer.
 model Chofer {
   id               Int              @id @default(autoincrement())
   contratistaId    Int              @map("contratista_id")
@@ -85,6 +89,7 @@ model Chofer {
   @@map("choferes")
 }
 
+/// Equivalente funcional de Tbl_Porterias.
 model Porteria {
   id            Int            @id @default(autoincrement())
   nombre        String         @unique
@@ -135,6 +140,7 @@ model LoginAudit {
   @@map("login_audits")
 }
 
+/// Equivalente funcional de Tbl_Asignacion (vinculo vehiculo <-> chofer).
 model VehiculoChofer {
   id         Int      @id @default(autoincrement())
   vehiculoId Int      @map("vehiculo_id")
@@ -149,6 +155,7 @@ model VehiculoChofer {
   @@map("vehiculo_choferes")
 }
 
+/// Equivalente funcional de Tbl_Flujo / historial operativo central.
 model EventoAcceso {
   id            Int               @id @default(autoincrement())
   vehiculoId    Int               @map("vehiculo_id")

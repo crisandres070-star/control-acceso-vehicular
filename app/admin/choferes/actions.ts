@@ -133,6 +133,23 @@ async function ensureContratistaExists(contratistaId: number) {
     }
 }
 
+async function ensureChoferAssignmentContractorConsistency(choferId: number, targetContratistaId: number) {
+    const mismatchedAssignments = await prisma.vehiculoChofer.count({
+        where: {
+            choferId,
+            vehiculo: {
+                contratistaId: {
+                    not: targetContratistaId,
+                },
+            },
+        },
+    });
+
+    if (mismatchedAssignments > 0) {
+        throw new Error("No se puede cambiar el contratista del chofer porque mantiene asignaciones en vehículos de otra empresa. Desasigne primero esos vehículos y luego actualice el contratista.");
+    }
+}
+
 export async function createQuickContratistaForChoferAction(formData: FormData): Promise<QuickCreateContratistaResult> {
     await requireRole("ADMIN");
 
@@ -192,7 +209,22 @@ export async function updateChoferAction(id: number, formData: FormData) {
 
     try {
         const input = parseChoferInput(formData);
+        const currentChofer = await prisma.chofer.findUnique({
+            where: { id },
+            select: {
+                contratistaId: true,
+            },
+        });
+
+        if (!currentChofer) {
+            throw new Error("No se encontró el chofer solicitado.");
+        }
+
         await ensureContratistaExists(input.contratistaId);
+
+        if (currentChofer.contratistaId !== input.contratistaId) {
+            await ensureChoferAssignmentContractorConsistency(id, input.contratistaId);
+        }
 
         await prisma.chofer.update({
             where: { id },

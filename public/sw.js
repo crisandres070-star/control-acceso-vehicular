@@ -1,4 +1,4 @@
-const CACHE_NAME = "web-acceso-static-v1";
+const CACHE_NAME = "web-acceso-static-v2";
 const PRECACHE_URLS = [
     "/manifest.webmanifest",
     "/pwa-icons/192",
@@ -41,14 +41,15 @@ self.addEventListener("fetch", (event) => {
         return;
     }
 
-    const isStaticAsset = url.pathname.startsWith("/_next/static/")
-        || url.pathname.startsWith("/logo/")
+    // Never cache Next.js runtime/build chunks. Stale chunks can break client navigation.
+    if (url.pathname.startsWith("/_next/")) {
+        return;
+    }
+
+    const isStaticAsset = url.pathname.startsWith("/logo/")
         || url.pathname.startsWith("/pwa-icons/")
         || url.pathname === "/manifest.webmanifest"
         || url.pathname === "/apple-icon"
-        || request.destination === "style"
-        || request.destination === "script"
-        || request.destination === "font"
         || request.destination === "image";
 
     if (!isStaticAsset) {

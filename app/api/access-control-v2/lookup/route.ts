@@ -60,6 +60,7 @@ export async function POST(request: Request) {
                             nombre: true,
                             rut: true,
                             codigoInterno: true,
+                            contratistaId: true,
                         },
                     },
                 },
@@ -99,7 +100,15 @@ export async function POST(request: Request) {
         );
     }
 
-    const authorizedDrivers = vehicle.vehiculoChoferes.map((assignment) => assignment.chofer);
+    const vehicleContractorId = vehicle.contratista?.id ?? null;
+    const authorizedDrivers = vehicle.vehiculoChoferes
+        .filter((assignment) => vehicleContractorId !== null && assignment.chofer.contratistaId === vehicleContractorId)
+        .map((assignment) => ({
+            id: assignment.chofer.id,
+            nombre: assignment.chofer.nombre,
+            rut: assignment.chofer.rut,
+            codigoInterno: assignment.chofer.codigoInterno,
+        }));
     const lastEvent = vehicle.eventosAcceso[0] ?? null;
 
     return NextResponse.json({

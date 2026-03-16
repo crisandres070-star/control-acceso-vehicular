@@ -44,6 +44,23 @@ async function getContratistaForVehicle(contratistaId: number) {
     return contratista;
 }
 
+async function ensureVehicleAssignmentContractorConsistency(vehicleId: number, targetContratistaId: number) {
+    const mismatchedAssignments = await prisma.vehiculoChofer.count({
+        where: {
+            vehiculoId: vehicleId,
+            chofer: {
+                contratistaId: {
+                    not: targetContratistaId,
+                },
+            },
+        },
+    });
+
+    if (mismatchedAssignments > 0) {
+        throw new Error("No se puede cambiar el contratista del vehículo mientras tenga choferes autorizados de otra empresa. Desasigne esos choferes y vuelva a asignarlos según el nuevo contratista.");
+    }
+}
+
 function parseVehicleInput(formData: FormData): VehicleInput {
     const contratistaId = Number(formData.get("contratistaId"));
     const licensePlate = normalizeLicensePlate(
@@ -188,11 +205,16 @@ export async function updateVehicleAction(id: number, formData: FormData) {
             select: {
                 name: true,
                 rut: true,
+                contratistaId: true,
             },
         });
 
         if (!existingVehicle) {
             throw new Error("No se encontró el vehículo a actualizar.");
+        }
+
+        if (existingVehicle.contratistaId !== contratista.id) {
+            await ensureVehicleAssignmentContractorConsistency(id, contratista.id);
         }
 
         await prisma.vehicle.update({

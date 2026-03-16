@@ -14,12 +14,14 @@ type VehicleLookup = {
     brand: string;
     company: string;
     accessStatus: string;
+    contratistaId: number | null;
     createdAt: Date;
     vehiculoChoferes: Array<{
         chofer: {
             id: number;
             nombre: string;
             rut: string;
+            contratistaId: number;
         };
     }>;
 };
@@ -60,6 +62,7 @@ export async function POST(request: Request) {
                             id: true,
                             nombre: true,
                             rut: true,
+                            contratistaId: true,
                         },
                     },
                 },
@@ -78,7 +81,13 @@ export async function POST(request: Request) {
             vehicleType: vehicle.vehicleType,
             brand: vehicle.brand,
             company: vehicle.company,
-            choferes: vehicle.vehiculoChoferes.map((assignment) => assignment.chofer),
+            choferes: vehicle.vehiculoChoferes
+                .filter((assignment) => vehicle.contratistaId !== null && assignment.chofer.contratistaId === vehicle.contratistaId)
+                .map((assignment) => ({
+                    id: assignment.chofer.id,
+                    nombre: assignment.chofer.nombre,
+                    rut: assignment.chofer.rut,
+                })),
         }
         : {
             name: "Unknown vehicle",

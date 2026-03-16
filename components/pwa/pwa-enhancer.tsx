@@ -46,6 +46,24 @@ export function PwaEnhancer() {
             return;
         }
 
+        if (process.env.NODE_ENV !== "production") {
+            void navigator.serviceWorker.getRegistrations()
+                .then((registrations) => Promise.all(registrations.map((registration) => registration.unregister())))
+                .catch(() => undefined);
+
+            if ("caches" in window) {
+                void window.caches.keys()
+                    .then((keys) => Promise.all(
+                        keys
+                            .filter((key) => key.startsWith("web-acceso-static-"))
+                            .map((key) => window.caches.delete(key)),
+                    ))
+                    .catch(() => undefined);
+            }
+
+            return;
+        }
+
         if (!window.isSecureContext && window.location.hostname !== "localhost") {
             return;
         }
