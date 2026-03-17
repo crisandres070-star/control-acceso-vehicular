@@ -5,7 +5,9 @@ import {
     buildExportSuffix,
     createCsvExportResponse,
     createExcelExportResponse,
+    formatExportDate,
     formatExportDateTime,
+    formatExportTime,
     parseExportFormat,
     type ExportColumn,
 } from "@/lib/export-utils";
@@ -21,8 +23,10 @@ type ContratistaExportRow = {
     telefono: string;
     vehiculosRelacionados: number;
     choferesRelacionados: number;
-    creado: string;
-    actualizado: string;
+    fechaCreacion: string;
+    horaCreacion: string;
+    fechaActualizacion: string;
+    horaActualizacion: string;
 };
 
 const columns = [
@@ -45,8 +49,10 @@ const columns = [
         value: (row) => row.choferesRelacionados,
         alignment: "center",
     },
-    { header: "Creado", key: "creado", width: 20, value: (row) => row.creado },
-    { header: "Última actualización", key: "actualizado", width: 22, value: (row) => row.actualizado },
+    { header: "Fecha creación", key: "fechaCreacion", width: 16, value: (row) => row.fechaCreacion, alignment: "center" },
+    { header: "Hora creación", key: "horaCreacion", width: 14, value: (row) => row.horaCreacion, alignment: "center" },
+    { header: "Fecha actualización", key: "fechaActualizacion", width: 18, value: (row) => row.fechaActualizacion, alignment: "center" },
+    { header: "Hora actualización", key: "horaActualizacion", width: 16, value: (row) => row.horaActualizacion, alignment: "center" },
 ] satisfies ExportColumn<ContratistaExportRow>[];
 
 export async function GET(request: Request) {
@@ -79,8 +85,10 @@ export async function GET(request: Request) {
         telefono: contratista.telefono ?? "Sin teléfono",
         vehiculosRelacionados: contratista._count.vehiculos,
         choferesRelacionados: contratista._count.choferes,
-        creado: formatExportDateTime(contratista.createdAt),
-        actualizado: formatExportDateTime(contratista.updatedAt),
+        fechaCreacion: formatExportDate(contratista.createdAt),
+        horaCreacion: formatExportTime(contratista.createdAt),
+        fechaActualizacion: formatExportDate(contratista.updatedAt),
+        horaActualizacion: formatExportTime(contratista.updatedAt),
     }));
 
     const filename = `contratistas-manuales${buildExportSuffix([])}`;

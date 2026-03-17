@@ -5,7 +5,9 @@ import {
     buildExportSuffix,
     createCsvExportResponse,
     createExcelExportResponse,
+    formatExportDate,
     formatExportDateTime,
+    formatExportTime,
     parseExportFormat,
     type ExportColumn,
 } from "@/lib/export-utils";
@@ -20,8 +22,10 @@ type ChoferExportRow = {
     codigoInterno: string;
     vehiculosAutorizados: number;
     detalleVehiculos: string;
-    creado: string;
-    actualizado: string;
+    fechaCreacion: string;
+    horaCreacion: string;
+    fechaActualizacion: string;
+    horaActualizacion: string;
 };
 
 const columns = [
@@ -43,8 +47,10 @@ const columns = [
         value: (row) => row.detalleVehiculos,
         wrapText: true,
     },
-    { header: "Creado", key: "creado", width: 20, value: (row) => row.creado },
-    { header: "Última actualización", key: "actualizado", width: 22, value: (row) => row.actualizado },
+    { header: "Fecha creación", key: "fechaCreacion", width: 16, value: (row) => row.fechaCreacion, alignment: "center" },
+    { header: "Hora creación", key: "horaCreacion", width: 14, value: (row) => row.horaCreacion, alignment: "center" },
+    { header: "Fecha actualización", key: "fechaActualizacion", width: 18, value: (row) => row.fechaActualizacion, alignment: "center" },
+    { header: "Hora actualización", key: "horaActualizacion", width: 16, value: (row) => row.horaActualizacion, alignment: "center" },
 ] satisfies ExportColumn<ChoferExportRow>[];
 
 export async function GET(request: Request) {
@@ -103,8 +109,10 @@ export async function GET(request: Request) {
             codigoInterno: chofer.codigoInterno ?? "Sin código",
             vehiculosAutorizados: chofer._count.vehiculoChoferes,
             detalleVehiculos: assignedVehicles || "Sin vehículos autorizados",
-            creado: formatExportDateTime(chofer.createdAt),
-            actualizado: formatExportDateTime(chofer.updatedAt),
+            fechaCreacion: formatExportDate(chofer.createdAt),
+            horaCreacion: formatExportTime(chofer.createdAt),
+            fechaActualizacion: formatExportDate(chofer.updatedAt),
+            horaActualizacion: formatExportTime(chofer.updatedAt),
         };
     });
 

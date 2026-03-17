@@ -32,11 +32,40 @@ export function isValidRut(value: string) {
     return /^[0-9]{8}-[0-9K]$/.test(normalizeRut(value));
 }
 
+const chileDateFormatter = new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+});
+
+const chileTimeFormatter = new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+});
+
+function resolveDatePart(parts: Intl.DateTimeFormatPart[], type: "day" | "month" | "year") {
+    return parts.find((part) => part.type === type)?.value ?? "";
+}
+
+function resolveTimePart(parts: Intl.DateTimeFormatPart[], type: "hour" | "minute" | "second") {
+    return parts.find((part) => part.type === type)?.value ?? "00";
+}
+
 export function formatDateTime(value: Date) {
-    return new Intl.DateTimeFormat("es-ES", {
-        dateStyle: "medium",
-        timeStyle: "short",
-    }).format(value);
+    const dateParts = chileDateFormatter.formatToParts(value);
+    const timeParts = chileTimeFormatter.formatToParts(value);
+    const day = resolveDatePart(dateParts, "day");
+    const month = resolveDatePart(dateParts, "month");
+    const year = resolveDatePart(dateParts, "year");
+    const hour = resolveTimePart(timeParts, "hour");
+    const minute = resolveTimePart(timeParts, "minute");
+    const second = resolveTimePart(timeParts, "second");
+
+    return `${day}-${month}-${year} ${hour}:${minute}:${second}`;
 }
 
 export function getQueryStringValue(

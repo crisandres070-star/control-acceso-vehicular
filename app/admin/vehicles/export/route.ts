@@ -5,7 +5,9 @@ import {
     buildExportSuffix,
     createCsvExportResponse,
     createExcelExportResponse,
+    formatExportDate,
     formatExportDateTime,
+    formatExportTime,
     inferStatusTone,
     parseExportFormat,
     type ExportColumn,
@@ -42,7 +44,8 @@ type VehicleExportRow = {
     rutChoferes: string;
     estadoRecinto: string;
     estadoAcceso: string;
-    actualizado: string;
+    fechaActualizacion: string;
+    horaActualizacion: string;
 };
 
 const columns = [
@@ -64,7 +67,8 @@ const columns = [
         alignment: "center",
         tone: (_row, value) => inferStatusTone(value),
     },
-    { header: "Última actualización", key: "actualizado", width: 22, value: (row) => row.actualizado },
+    { header: "Fecha actualización", key: "fechaActualizacion", width: 18, value: (row) => row.fechaActualizacion, alignment: "center" },
+    { header: "Hora actualización", key: "horaActualizacion", width: 16, value: (row) => row.horaActualizacion, alignment: "center" },
 ] satisfies ExportColumn<VehicleExportRow>[];
 
 export async function GET(request: Request) {
@@ -122,7 +126,8 @@ export async function GET(request: Request) {
                 : "Sin RUT asociado",
             estadoRecinto: formatEstadoRecintoLabel(vehicle.estadoRecinto),
             estadoAcceso: formatAccessStatusLabel(vehicle.accessStatus),
-            actualizado: formatExportDateTime(vehicle.updatedAt),
+            fechaActualizacion: formatExportDate(vehicle.updatedAt),
+            horaActualizacion: formatExportTime(vehicle.updatedAt),
         };
     });
 

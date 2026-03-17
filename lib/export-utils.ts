@@ -28,18 +28,30 @@ type CreateExcelExportOptions<Row> = CreateTabularExportOptions<Row> & {
     subtitle?: string;
 };
 
+const CHILE_TIME_ZONE = "America/Santiago";
+
 const exportDateFormatter = new Intl.DateTimeFormat("es-CL", {
-    dateStyle: "short",
+    timeZone: CHILE_TIME_ZONE,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
 });
 
 const exportTimeFormatter = new Intl.DateTimeFormat("es-CL", {
-    timeStyle: "short",
+    timeZone: CHILE_TIME_ZONE,
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
 });
 
-const exportDateTimeFormatter = new Intl.DateTimeFormat("es-CL", {
-    dateStyle: "short",
-    timeStyle: "medium",
-});
+function resolveDatePart(parts: Intl.DateTimeFormatPart[], type: "day" | "month" | "year") {
+    return parts.find((part) => part.type === type)?.value ?? "";
+}
+
+function resolveTimePart(parts: Intl.DateTimeFormatPart[], type: "hour" | "minute" | "second") {
+    return parts.find((part) => part.type === type)?.value ?? "00";
+}
 
 function normalizeCellValue(value: ExportCellValue) {
     if (value === null || value === undefined) {
@@ -122,15 +134,25 @@ export function buildExportSuffix(parts: Array<string | null | undefined>) {
 }
 
 export function formatExportDate(value: Date) {
-    return exportDateFormatter.format(value);
+    const parts = exportDateFormatter.formatToParts(value);
+    const day = resolveDatePart(parts, "day");
+    const month = resolveDatePart(parts, "month");
+    const year = resolveDatePart(parts, "year");
+
+    return `${day}-${month}-${year}`;
 }
 
 export function formatExportTime(value: Date) {
-    return exportTimeFormatter.format(value);
+    const parts = exportTimeFormatter.formatToParts(value);
+    const hour = resolveTimePart(parts, "hour");
+    const minute = resolveTimePart(parts, "minute");
+    const second = resolveTimePart(parts, "second");
+
+    return `${hour}:${minute}:${second}`;
 }
 
 export function formatExportDateTime(value: Date) {
-    return exportDateTimeFormatter.format(value);
+    return `${formatExportDate(value)} ${formatExportTime(value)}`;
 }
 
 export function inferStatusTone(value: string): ExportTone {

@@ -65,12 +65,18 @@ type EventosAccesoPageProps = {
 };
 
 const dateFormatter = new Intl.DateTimeFormat("es-CL", {
-    dateStyle: "short",
+    timeZone: "America/Santiago",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
 });
 
 const timeFormatter = new Intl.DateTimeFormat("es-CL", {
+    timeZone: "America/Santiago",
     hour: "2-digit",
     minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
 });
 
 function getStatusClasses(tipoEvento: "ENTRADA" | "SALIDA") {
