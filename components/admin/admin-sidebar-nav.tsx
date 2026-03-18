@@ -6,97 +6,68 @@ import { usePathname } from "next/navigation";
 
 const navigationSections = [
     {
-        title: "Menú administración",
+        title: "Operación",
         items: [
             {
-                key: "admin-menu",
-                href: "/admin",
-                label: "Inicio",
-                short: "IN",
-                description: "Acceso al menú principal del sistema.",
-                matches: ["/admin"],
-            },
-            {
-                key: "reportes",
-                href: "/admin/eventos-acceso",
-                label: "Búsqueda / reporte",
-                short: "RP",
-                description: "Consulta de eventos y exportaciones.",
-                matches: ["/admin/eventos-acceso"],
+                key: "dashboard-faena",
+                href: "/admin/dashboard-faena",
+                label: "Dashboard de faena",
+                short: "DF",
+                description: "Vehículos en faena, fuera o en tránsito.",
+                matches: ["/admin/dashboard-faena"],
             },
             {
                 key: "seguimiento",
                 href: "/admin/control-acceso-v2",
-                label: "Seguimiento en línea",
-                short: "SG",
-                description: "Operación diaria del control de acceso.",
+                label: "Control de acceso",
+                short: "CA",
+                description: "Registro operativo de ENTRADA y SALIDA.",
                 matches: ["/admin/control-acceso-v2"],
+            },
+            {
+                key: "reportes",
+                href: "/admin/eventos-acceso",
+                label: "Reportes",
+                short: "RP",
+                description: "Historial por patente, portería y evento.",
+                matches: ["/admin/eventos-acceso"],
+            },
+            {
+                key: "importaciones",
+                href: "/admin/importaciones/vehiculos",
+                label: "Importación Excel",
+                short: "IMP",
+                description: "Carga autónoma de empresas y vehículos.",
+                matches: ["/admin/importaciones", "/admin/importaciones/vehiculos"],
             },
         ],
     },
     {
-        title: "Ingresos",
+        title: "Maestros",
         items: [
             {
                 key: "contratistas",
                 href: "/admin/contratistas",
-                label: "Ingreso de contratista",
+                label: "Contratistas",
                 short: "CT",
-                description: "Empresas y datos de contacto.",
+                description: "Alta y corrección puntual, complementaria al Excel.",
                 matches: ["/admin/contratistas"],
             },
             {
                 key: "vehiculos",
                 href: "/admin/vehiculos",
-                label: "Ingreso de vehículo",
+                label: "Vehículos",
                 short: "VH",
                 description: "Padrón vehicular y edición de fichas.",
                 matches: ["/admin/vehiculos", "/admin/vehicles"],
             },
             {
-                key: "choferes",
-                href: "/admin/choferes",
-                label: "Ingreso de chofer",
-                short: "CH",
-                description: "Choferes asociados a contratistas.",
-                matches: ["/admin/choferes"],
-            },
-            {
                 key: "porterias",
                 href: "/admin/porterias",
-                label: "Ingreso de portería",
+                label: "Porterías",
                 short: "PT",
                 description: "Puntos de control y teléfonos.",
                 matches: ["/admin/porterias"],
-            },
-        ],
-    },
-    {
-        title: "Operación interna",
-        items: [
-            {
-                key: "asignaciones",
-                href: "/admin/asignaciones",
-                label: "Asignaciones",
-                short: "AS",
-                description: "Relación entre choferes y vehículos.",
-                matches: ["/admin/asignaciones"],
-            },
-            {
-                key: "logs",
-                href: "/admin/logs",
-                label: "Historial administrativo",
-                short: "LG",
-                description: "Movimientos V2 y bitácora legacy del sistema.",
-                matches: ["/admin/logs"],
-            },
-            {
-                key: "importaciones",
-                href: "/admin/importaciones",
-                label: "Importaciones",
-                short: "IMP",
-                description: "Módulo secundario fuera del flujo principal.",
-                matches: ["/admin/importaciones"],
             },
         ],
     },
@@ -120,7 +91,7 @@ export function AdminSidebarNav() {
                 </div>
                 <p className="mt-4 text-sm font-semibold text-slate-950">Menú del sistema</p>
                 <p className="mt-1 text-sm leading-6 text-slate-500">
-                    Navegación simple para ingresar información manualmente y consultar el seguimiento.
+                    Navegación simple para operar por patente, consultar reportes y administrar el padrón vehicular.
                 </p>
             </div>
 

@@ -20,7 +20,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                 Sistema de acceso
                             </h1>
                             <p className="mt-2 text-sm leading-6 text-slate-600">
-                                Ingreso manual de datos, seguimiento en línea y reportes desde la web.
+                                Carga Excel, gestión administrativa, seguimiento en línea y reportes desde la web.
                             </p>
                         </div>
 
@@ -39,7 +39,7 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                 </span>
                             </div>
                             <p className="mt-3 text-sm leading-6 text-slate-500">
-                                Sesión preparada para gestionar padrón, asignaciones y control de acceso desde el panel.
+                                Sesión preparada para gestionar padrón vehicular, dashboard de faena y control de acceso desde el panel.
                             </p>
                         </div>
                     </aside>
@@ -66,13 +66,13 @@ export default async function AdminLayout({ children }: Readonly<{ children: Rea
                                             Menú del sistema
                                         </p>
                                         <p className="mt-1 text-sm text-slate-500">
-                                            Flujo manual, claro y operativo
+                                            Flujo operativo claro y mantenible
                                         </p>
                                     </div>
                                 </div>
 
                                 <div className="flex flex-wrap items-center gap-3">
-                                    <span className="topbar-chip">Operación manual</span>
+                                    <span className="topbar-chip">Operación diaria</span>
                                     <span className="topbar-chip">Rol {roleLabel}</span>
                                     <form action="/logout" method="post">
                                         <button className="inline-flex min-h-[52px] items-center justify-center rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 focus:ring-4 focus:ring-slate-200" type="submit">

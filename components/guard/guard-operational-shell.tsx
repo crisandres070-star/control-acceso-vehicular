@@ -45,7 +45,7 @@ export function GuardOperationalShell({
                                     Control de acceso operativo
                                 </p>
                                 <p className="mt-1 text-sm text-slate-500">
-                                    Patente, chofer autorizado y registro final de ENTRADA o SALIDA
+                                    Patente, portería y registro simple de ENTRADA o SALIDA
                                 </p>
                             </div>
                         </div>

@@ -16,6 +16,7 @@ enum TipoEventoAcceso {
 enum EstadoRecintoVehiculo {
   DENTRO
   FUERA
+  EN_TRANSITO
 }
 
 enum UserRole {
@@ -94,12 +95,14 @@ model Porteria {
   id            Int            @id @default(autoincrement())
   nombre        String         @unique
   telefono      String?
+  orden         Int            @default(0) @map("orden") // Sequencial order for entry/exit checkpoints
   createdAt     DateTime       @default(now()) @map("created_at")
   updatedAt     DateTime       @default(now()) @updatedAt @map("updated_at")
 
   eventosAcceso EventoAcceso[]
   usuariosSistema SystemUser[] @relation("SystemUserPorteria")
 
+  @@index([orden])
   @@map("porterias")
 }
 

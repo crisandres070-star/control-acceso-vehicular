@@ -161,7 +161,7 @@ export function VehicleForm({
                             </p>
                             <p className="mt-2 text-sm leading-6 text-slate-600">
                                 {selectedContratista
-                                    ? "La ficha del vehículo quedará alineada con esta empresa y luego podrá autorizar uno o más choferes desde asignaciones."
+                                    ? "La ficha del vehículo quedará alineada con esta empresa y lista para control de acceso, historial y dashboard."
                                     : "Seleccione la empresa responsable para dejar la ficha lista para operar."}
                             </p>
                         </div>
@@ -209,7 +209,7 @@ export function VehicleForm({
                         value={codigoInterno}
                     />
                     <p className="text-sm leading-6 text-slate-500">
-                        Este número identifica a la camioneta o camión dentro de la operación. No pertenece al chofer.
+                        Este número identifica al vehículo dentro de la operación y se usa en reportes y control de acceso.
                     </p>
                 </div>
 
@@ -261,7 +261,7 @@ export function VehicleForm({
                 <div className="md:col-span-2 flex flex-col gap-4 border-t border-slate-200/80 pt-6 lg:flex-row lg:items-center lg:justify-between">
                     <div>
                         <p className="text-sm font-semibold text-slate-900">Datos del vehículo</p>
-                        <p className="mt-1 text-sm text-slate-500">Guarde la ficha y luego autorice uno o más choferes para este vehículo.</p>
+                        <p className="mt-1 text-sm text-slate-500">Guarde la ficha para dejar el vehículo disponible en portería, historial y dashboard.</p>
                     </div>
 
                     <div className="flex flex-wrap justify-end gap-3">

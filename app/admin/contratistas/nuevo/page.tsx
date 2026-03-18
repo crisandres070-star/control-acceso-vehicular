@@ -26,7 +26,7 @@ export default function NuevoContratistaPage({ searchParams }: NuevoContratistaP
                                 Crear contratista
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                                Ingrese la información base del contratista para dejar disponible su ficha dentro del flujo manual oficial del sistema.
+                                Ingrese la información base para resolver casos puntuales sin volver a subir el Excel completo.
                             </p>
                         </div>
 
@@ -45,7 +45,7 @@ export default function NuevoContratistaPage({ searchParams }: NuevoContratistaP
             <ContratistaForm
                 action={createContratistaAction}
                 cancelHref="/admin/contratistas"
-                description="Complete los datos principales del contratista con una ficha clara, consistente y lista para relacionarse con vehículos, choferes y eventos."
+                description="Complete los datos principales del contratista con una ficha clara y consistente, compatible con la importación autónoma por Excel."
                 errorMessage={error}
                 heading="Ficha del contratista"
                 id="contratista-form"

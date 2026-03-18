@@ -58,7 +58,7 @@ export default async function EditarContratistaPage({ params, searchParams }: Ed
                                 Actualizar {contratista.razonSocial}
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                                Mantenga la ficha administrativa al día sin romper el flujo manual actual ni las relaciones operativas ya consolidadas.
+                                Corrija datos puntuales del contratista sin alterar el flujo principal de importación autónoma por Excel.
                             </p>
                         </div>
 
@@ -119,7 +119,7 @@ export default async function EditarContratistaPage({ params, searchParams }: Ed
                     contacto: contratista.contacto,
                     telefono: contratista.telefono,
                 }}
-                description="Edite la información del contratista con una distribución clara, compatible con el resto del panel y lista para la operación manual diaria."
+                description="Edite la información del contratista manteniendo total compatibilidad con la operación diaria y con el importador Excel."
                 errorMessage={error}
                 heading="Ficha del contratista"
                 id="edit-contratista-form"

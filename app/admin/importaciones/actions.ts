@@ -36,6 +36,9 @@ function buildImportRedirectPath(params: {
     existingContractors?: number;
     importedVehicles?: number;
     existingVehicles?: number;
+    validRows?: number;
+    invalidRows?: number;
+    omittedDuplicates?: number;
     duplicateInternal?: number;
     warnings?: number;
     totalRows?: number;
@@ -72,6 +75,18 @@ function buildImportRedirectPath(params: {
 
     if (typeof params.existingVehicles === "number") {
         searchParams.set("existingVehicles", String(params.existingVehicles));
+    }
+
+    if (typeof params.validRows === "number") {
+        searchParams.set("validRows", String(params.validRows));
+    }
+
+    if (typeof params.invalidRows === "number") {
+        searchParams.set("invalidRows", String(params.invalidRows));
+    }
+
+    if (typeof params.omittedDuplicates === "number") {
+        searchParams.set("omittedDuplicates", String(params.omittedDuplicates));
     }
 
     if (typeof params.duplicateInternal === "number") {
@@ -234,11 +249,14 @@ export async function confirmImportAction(formData: FormData) {
         const result = await confirmImportPreview(previewId, session.username);
 
         revalidatePath(IMPORT_MODULE_PATH);
+        revalidatePath("/admin/importaciones");
         revalidatePath("/admin");
         revalidatePath("/admin/vehicles");
+        revalidatePath("/admin/vehiculos");
         revalidatePath("/admin/contratistas");
         revalidatePath("/admin/asignaciones");
         revalidatePath("/admin/control-acceso-v2");
+        revalidatePath("/admin/dashboard-faena");
         revalidatePath("/guard/v2");
 
         redirectPath = buildImportRedirectPath({
@@ -247,6 +265,9 @@ export async function confirmImportAction(formData: FormData) {
             existingContractors: result.existingContractors,
             importedVehicles: result.createdVehicles,
             existingVehicles: result.existingVehicles,
+            validRows: result.validRows,
+            invalidRows: result.invalidRows,
+            omittedDuplicates: result.omittedDuplicates,
             duplicateInternal: result.duplicateInternal,
             warnings: result.warnings,
             totalRows: result.totalRows,

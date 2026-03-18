@@ -1,5 +1,8 @@
 import {
-    IMPORT_REQUIRED_HEADERS,
+    IMPORT_HEADER_ALIASES,
+    IMPORT_REQUIRED_HEADER_KEYS,
+    IMPORT_REQUIRED_HEADER_LABELS,
+    type ImportRequiredHeaderKey,
 } from "@/lib/import/constants";
 import {
     normalizeEmpresa,
@@ -10,10 +13,9 @@ import {
     normalizeTipoVehiculo,
     patenteWasNormalized,
 } from "@/lib/import/normalizers";
-import type { ParsedExcelImport, ParsedExcelImportRow } from "@/lib/import/types";
+import type { ImportIssue, ParsedExcelImport, ParsedExcelImportRow } from "@/lib/import/types";
 import {
     hasCriticalImportIssues,
-    validateExactHeaders,
     validateExcelFile,
     validateParsedExcelRow,
     validateSingleSheetWorkbook,
@@ -26,6 +28,119 @@ function getCellText(value: unknown) {
     }
 
     return String(value).replace(/[\r\n]+/g, " ").trim();
+}
+
+function buildHeaderAliasLookup() {
+    const aliasLookup = new Map<string, ImportRequiredHeaderKey>();
+
+    for (const headerKey of IMPORT_REQUIRED_HEADER_KEYS) {
+        const aliases = [
+            IMPORT_REQUIRED_HEADER_LABELS[headerKey],
+            ...IMPORT_HEADER_ALIASES[headerKey],
+        ];
+
+        for (const alias of aliases) {
+            const normalizedAlias = normalizeHeaderLabel(alias);
+
+            if (!normalizedAlias) {
+                continue;
+            }
+
+            aliasLookup.set(normalizedAlias, headerKey);
+        }
+    }
+
+    return aliasLookup;
+}
+
+function resolveHeaderColumns(headerRow: {
+    eachCell: (
+        options: { includeEmpty: boolean },
+        callback: (cell: { text: unknown }, columnNumber: number) => void,
+    ) => void;
+}) {
+    const aliasLookup = buildHeaderAliasLookup();
+    const detectedHeaders: string[] = [];
+    const unresolvedHeaders: string[] = [];
+    const duplicateFields = new Set<ImportRequiredHeaderKey>();
+    const headerColumns = new Map<ImportRequiredHeaderKey, number>();
+    const issues: ImportIssue[] = [];
+
+    headerRow.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
+        const rawHeader = normalizeText(getCellText(cell.text));
+
+        if (!rawHeader) {
+            return;
+        }
+
+        detectedHeaders.push(rawHeader);
+
+        const headerKey = aliasLookup.get(normalizeHeaderLabel(rawHeader));
+
+        if (!headerKey) {
+            unresolvedHeaders.push(rawHeader);
+            return;
+        }
+
+        if (headerColumns.has(headerKey)) {
+            duplicateFields.add(headerKey);
+            return;
+        }
+
+        headerColumns.set(headerKey, columnNumber);
+    });
+
+    if (detectedHeaders.length === 0) {
+        issues.push(createImportIssue({
+            code: "missing-header-row",
+            severity: "critical",
+            field: "Encabezados",
+            message: "No se detectaron encabezados en la primera fila del archivo.",
+        }));
+    }
+
+    if (duplicateFields.size > 0) {
+        issues.push(createImportIssue({
+            code: "duplicate-header-fields",
+            severity: "critical",
+            field: "Encabezados",
+            message: `Hay columnas repetidas para los mismos campos obligatorios: ${Array.from(duplicateFields)
+                .map((headerKey) => IMPORT_REQUIRED_HEADER_LABELS[headerKey])
+                .join(", ")}.`,
+        }));
+    }
+
+    const missingFields = IMPORT_REQUIRED_HEADER_KEYS.filter((headerKey) => !headerColumns.has(headerKey));
+
+    if (missingFields.length > 0) {
+        issues.push(createImportIssue({
+            code: "missing-required-headers",
+            severity: "critical",
+            field: "Encabezados",
+            message: `Faltan columnas obligatorias: ${missingFields
+                .map((headerKey) => IMPORT_REQUIRED_HEADER_LABELS[headerKey])
+                .join(", ")}. Encabezados esperados: ${IMPORT_REQUIRED_HEADER_KEYS
+                    .map((headerKey) => IMPORT_REQUIRED_HEADER_LABELS[headerKey])
+                    .join(", ")}.`,
+        }));
+    }
+
+    if (unresolvedHeaders.length > 0) {
+        const uniqueUnresolvedHeaders = Array.from(new Set(unresolvedHeaders));
+
+        issues.push(createImportIssue({
+            code: "unresolved-headers",
+            severity: "warning",
+            field: "Encabezados",
+            message: `Se detectaron columnas adicionales que no forman parte del formato obligatorio y seran ignoradas: ${uniqueUnresolvedHeaders.join(", ")}.`,
+        }));
+    }
+
+    return {
+        headerColumns,
+        detectedHeaders,
+        issues,
+    };
 }
 
 export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImport> {
@@ -55,7 +170,7 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
             code: "invalid-workbook",
             severity: "critical",
             field: "Archivo",
-            message: "No fue posible leer el archivo Excel. Verifique que sea un .xlsx válido y que no esté dañado.",
+            message: "No fue posible leer el archivo Excel. Verifique que sea un .xlsx valido y que no este danado.",
         }));
 
         return {
@@ -85,44 +200,15 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
         };
     }
 
-    const headerRow = worksheet.getRow(1);
-    const expectedColumnCount = IMPORT_REQUIRED_HEADERS.length;
-    const getUnexpectedNonEmptyColumnNumbers = (worksheetRow: typeof headerRow) => {
-        const columnNumbers: number[] = [];
+    const headerResolution = resolveHeaderColumns(worksheet.getRow(1));
 
-        worksheetRow.eachCell({ includeEmpty: false }, (cell, columnNumber) => {
-            if (columnNumber <= expectedColumnCount) {
-                return;
-            }
-
-            const normalizedValue = normalizeText(getCellText(cell.text));
-
-            if (normalizedValue) {
-                columnNumbers.push(columnNumber);
-            }
-        });
-
-        return columnNumbers;
-    };
-    const normalizedHeaders = IMPORT_REQUIRED_HEADERS.map((_, index) => normalizeText(getCellText(headerRow.getCell(index + 1).text)));
-    const unexpectedHeaderColumns = getUnexpectedNonEmptyColumnNumbers(headerRow);
-
-    issues.push(...validateExactHeaders(normalizedHeaders));
-
-    if (unexpectedHeaderColumns.length > 0) {
-        issues.push(createImportIssue({
-            code: "unexpected-header-columns",
-            severity: "critical",
-            field: "Encabezados",
-            message: `El archivo contiene columnas adicionales fuera del formato esperado en la fila de encabezados: ${unexpectedHeaderColumns.join(", ")}.`,
-        }));
-    }
+    issues.push(...headerResolution.issues);
 
     if (hasCriticalImportIssues(issues)) {
         return {
             fileName: file.name,
             sheetName: worksheet.name,
-            headers: normalizedHeaders,
+            headers: headerResolution.detectedHeaders,
             rows: [],
             nonEmptyRowCount: 0,
             blankRowNumbers: [],
@@ -130,6 +216,10 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
         };
     }
 
+    const patenteColumn = headerResolution.headerColumns.get("patente") as number;
+    const numeroInternoColumn = headerResolution.headerColumns.get("numeroInterno") as number;
+    const empresaColumn = headerResolution.headerColumns.get("empresa") as number;
+    const tipoVehiculoColumn = headerResolution.headerColumns.get("tipoVehiculo") as number;
     const rows: ParsedExcelImportRow[] = [];
     const blankRowNumbers: number[] = [];
     let nonEmptyRowCount = 0;
@@ -138,16 +228,14 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
 
     for (let rowNumber = 2; rowNumber <= totalRows; rowNumber += 1) {
         const worksheetRow = worksheet.getRow(rowNumber);
-        const patenteOriginal = getCellText(worksheetRow.getCell(1).text);
-        const numeroInternoOriginal = getCellText(worksheetRow.getCell(2).text);
-        const empresaOriginal = getCellText(worksheetRow.getCell(3).text);
-        const tipoVehiculoOriginal = getCellText(worksheetRow.getCell(4).text);
-        const unexpectedDataColumns = getUnexpectedNonEmptyColumnNumbers(worksheetRow);
+        const patenteOriginal = getCellText(worksheetRow.getCell(patenteColumn).text);
+        const numeroInternoOriginal = getCellText(worksheetRow.getCell(numeroInternoColumn).text);
+        const empresaOriginal = getCellText(worksheetRow.getCell(empresaColumn).text);
+        const tipoVehiculoOriginal = getCellText(worksheetRow.getCell(tipoVehiculoColumn).text);
         const isBlankRow = !normalizeText(patenteOriginal)
             && !normalizeText(numeroInternoOriginal)
             && !normalizeText(empresaOriginal)
-            && !normalizeText(tipoVehiculoOriginal)
-            && unexpectedDataColumns.length === 0;
+            && !normalizeText(tipoVehiculoOriginal);
 
         if (isBlankRow) {
             blankRowNumbers.push(rowNumber);
@@ -156,22 +244,12 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
                 severity: "warning",
                 field: "Importación",
                 rowNumber,
-                message: "La fila está vacía y será ignorada.",
+                message: "La fila esta vacia y sera ignorada.",
             }));
             continue;
         }
 
         nonEmptyRowCount += 1;
-
-        if (unexpectedDataColumns.length > 0) {
-            issues.push(createImportIssue({
-                code: "unexpected-row-columns",
-                severity: "critical",
-                field: "Importación",
-                rowNumber,
-                message: `La fila contiene datos en columnas adicionales fuera del formato esperado: ${unexpectedDataColumns.join(", ")}.`,
-            }));
-        }
 
         const parsedRow: ParsedExcelImportRow = {
             patenteOriginal,
@@ -203,7 +281,7 @@ export async function parseSingleSheetExcel(file: File): Promise<ParsedExcelImpo
     return {
         fileName: file.name,
         sheetName: worksheet.name,
-        headers: normalizedHeaders.map((header) => normalizeHeaderLabel(header)),
+        headers: headerResolution.detectedHeaders.map((header) => normalizeHeaderLabel(header)),
         rows,
         nonEmptyRowCount,
         blankRowNumbers,

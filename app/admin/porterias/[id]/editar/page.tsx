@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { updatePorteriaAction } from "@/app/admin/porterias/actions";
 import { PorteriaForm } from "@/components/admin/porteria-form";
 import { requireRole } from "@/lib/auth";
+import { getOperationalPorteriaName } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, getQueryStringValue } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ export default async function EditarPorteriaPage({ params, searchParams }: Edita
     }
 
     const error = getQueryStringValue(searchParams.error);
+    const displayName = getOperationalPorteriaName(porteria);
 
     return (
         <div className="space-y-6">
@@ -43,7 +45,7 @@ export default async function EditarPorteriaPage({ params, searchParams }: Edita
                                 Edición de portería
                             </p>
                             <h2 className="mt-3 font-[family:var(--font-heading)] text-3xl font-bold text-slate-950 lg:text-4xl">
-                                Actualizar {porteria.nombre}
+                                Actualizar {displayName}
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
                                 Mantenga la ficha del punto de control al día sin alterar los módulos administrativos y operativos ya implementados.
@@ -66,7 +68,7 @@ export default async function EditarPorteriaPage({ params, searchParams }: Edita
                         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                             Identificación
                         </p>
-                        <p className="mt-3 text-xl font-semibold text-slate-950">{porteria.nombre}</p>
+                        <p className="mt-3 text-xl font-semibold text-slate-950">{displayName}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
                             Punto de control disponible para futuras relaciones con eventos de acceso y operación del recinto.
                         </p>

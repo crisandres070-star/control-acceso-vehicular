@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 
+import { OPERATIONAL_PORTERIA_NAMES } from "@/lib/porterias";
+
 type PorteriaDefaults = {
     nombre?: string;
     telefono?: string | null;
@@ -68,10 +70,13 @@ export function PorteriaForm({
                         defaultValue={defaults?.nombre}
                         id="nombre"
                         name="nombre"
-                        placeholder="Ej. Portería Norte"
+                        placeholder="Ej. Cala Cala"
                         required
                         type="text"
                     />
+                    <p className="text-sm leading-6 text-slate-500">
+                        Nombres operativos recomendados: {OPERATIONAL_PORTERIA_NAMES.join(", ")}.
+                    </p>
                 </div>
 
                 <div className="space-y-2 md:col-span-2">

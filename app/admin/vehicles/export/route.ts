@@ -1,3 +1,4 @@
+import { type EstadoRecintoVehiculo } from "@prisma/client";
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
@@ -16,16 +17,16 @@ import { prisma } from "@/lib/prisma";
 
 export const runtime = "nodejs";
 
-function formatEstadoRecintoLabel(value: "DENTRO" | "FUERA" | null) {
+function formatEstadoRecintoLabel(value: EstadoRecintoVehiculo | null) {
     if (value === "DENTRO") {
-        return "DENTRO";
+        return "EN FAENA";
     }
 
-    if (value === "FUERA") {
-        return "FUERA";
+    if (value === "EN_TRANSITO") {
+        return "EN TRÁNSITO";
     }
 
-    return "Sin estado";
+    return "FUERA DE FAENA";
 }
 
 function formatAccessStatusLabel(value: string) {
@@ -40,8 +41,6 @@ type VehicleExportRow = {
     empresa: string;
     contratista: string;
     rutContratista: string;
-    choferes: string;
-    rutChoferes: string;
     estadoRecinto: string;
     estadoAcceso: string;
     fechaActualizacion: string;
@@ -56,8 +55,6 @@ const columns = [
     { header: "Empresa", key: "empresa", width: 24, value: (row) => row.empresa },
     { header: "Contratista", key: "contratista", width: 28, value: (row) => row.contratista },
     { header: "RUT contratista", key: "rutContratista", width: 18, value: (row) => row.rutContratista },
-    { header: "Choferes autorizados", key: "choferes", width: 34, value: (row) => row.choferes, wrapText: true },
-    { header: "RUT choferes", key: "rutChoferes", width: 28, value: (row) => row.rutChoferes, wrapText: true },
     { header: "Estado recinto", key: "estadoRecinto", width: 18, value: (row) => row.estadoRecinto, alignment: "center" },
     {
         header: "Estado / resultado",
@@ -89,16 +86,6 @@ export async function GET(request: Request) {
                     rut: true,
                 },
             },
-            vehiculoChoferes: {
-                select: {
-                    chofer: {
-                        select: {
-                            nombre: true,
-                            rut: true,
-                        },
-                    },
-                },
-            },
         },
         orderBy: [
             { updatedAt: "desc" },
@@ -106,30 +93,19 @@ export async function GET(request: Request) {
         ],
     });
 
-    const rows: VehicleExportRow[] = vehicles.map((vehicle) => {
-        const authorizedChoferes = [...vehicle.vehiculoChoferes]
-            .sort((left, right) => left.chofer.nombre.localeCompare(right.chofer.nombre, "es-CL"));
-
-        return {
-            patente: vehicle.licensePlate,
-            numeroInterno: vehicle.codigoInterno,
-            tipoVehiculo: vehicle.vehicleType,
-            marca: vehicle.brand,
-            empresa: vehicle.company,
-            contratista: vehicle.contratista?.razonSocial ?? "Sin contratista asociado",
-            rutContratista: vehicle.contratista?.rut ?? "Sin RUT",
-            choferes: authorizedChoferes.length > 0
-                ? authorizedChoferes.map((assignment) => assignment.chofer.nombre).join(" | ")
-                : "Sin choferes autorizados",
-            rutChoferes: authorizedChoferes.length > 0
-                ? authorizedChoferes.map((assignment) => assignment.chofer.rut).join(" | ")
-                : "Sin RUT asociado",
-            estadoRecinto: formatEstadoRecintoLabel(vehicle.estadoRecinto),
-            estadoAcceso: formatAccessStatusLabel(vehicle.accessStatus),
-            fechaActualizacion: formatExportDate(vehicle.updatedAt),
-            horaActualizacion: formatExportTime(vehicle.updatedAt),
-        };
-    });
+    const rows: VehicleExportRow[] = vehicles.map((vehicle) => ({
+        patente: vehicle.licensePlate,
+        numeroInterno: vehicle.codigoInterno,
+        tipoVehiculo: vehicle.vehicleType,
+        marca: vehicle.brand,
+        empresa: vehicle.company,
+        contratista: vehicle.contratista?.razonSocial ?? "Sin contratista asociado",
+        rutContratista: vehicle.contratista?.rut ?? "Sin RUT",
+        estadoRecinto: formatEstadoRecintoLabel(vehicle.estadoRecinto),
+        estadoAcceso: formatAccessStatusLabel(vehicle.accessStatus),
+        fechaActualizacion: formatExportDate(vehicle.updatedAt),
+        horaActualizacion: formatExportTime(vehicle.updatedAt),
+    }));
 
     const filename = `vehiculos-manuales${buildExportSuffix([])}`;
 
@@ -138,7 +114,7 @@ export async function GET(request: Request) {
             filename,
             sheetName: "Vehículos",
             title: "Padrón vehicular",
-            subtitle: `Generado el ${formatExportDateTime(new Date())}. Incluye contratista, choferes autorizados y estado operativo del vehículo.`,
+            subtitle: `Generado el ${formatExportDateTime(new Date())}. Incluye contratista y estado operativo actual del vehículo.`,
             columns,
             rows,
         });

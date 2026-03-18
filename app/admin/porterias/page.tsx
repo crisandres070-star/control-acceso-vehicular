@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { deletePorteriaAction } from "@/app/admin/porterias/actions";
 import { DeletePorteriaButton } from "@/components/admin/delete-porteria-button";
+import { mapOperationalPorterias } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import { formatDateTime, getQueryStringValue } from "@/lib/utils";
 
@@ -9,6 +10,7 @@ type PorteriaRow = {
     id: number;
     nombre: string;
     telefono: string | null;
+    orden: number;
     updatedAt: Date;
 };
 
@@ -22,9 +24,9 @@ type PorteriasPageProps = {
 
 export default async function PorteriasPage({ searchParams }: PorteriasPageProps) {
     const porteriaRecords = await prisma.porteria.findMany({
-        orderBy: [{ nombre: "asc" }],
+        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
     });
-    const porterias = porteriaRecords as PorteriaRow[];
+    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaRow[]);
 
     const success = getQueryStringValue(searchParams.success);
     const error = getQueryStringValue(searchParams.error);
@@ -44,7 +46,7 @@ export default async function PorteriasPage({ searchParams }: PorteriasPageProps
                             Porterías
                         </h1>
                         <p className="mt-3 text-sm leading-6 text-slate-600 lg:text-base">
-                            Ingrese y mantenga los puntos de control utilizados por el sistema para el seguimiento de accesos.
+                            Ingrese y mantenga los puntos de control usados en la operación diaria. Para esta versión operativa los nombres visibles son Cala Cala, Soledad, Tana y Negreiros.
                         </p>
                     </div>
 

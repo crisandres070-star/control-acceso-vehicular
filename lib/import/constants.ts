@@ -1,11 +1,54 @@
-export const IMPORT_MODULE_PATH = "/admin/importaciones";
+export const IMPORT_MODULE_PATH = "/admin/importaciones/vehiculos";
 
-export const IMPORT_REQUIRED_HEADERS = [
-    "Patente",
-    "N°Interno",
-    "Empresa",
-    "Tipo vehiculo",
+export const IMPORT_REQUIRED_HEADER_KEYS = [
+    "patente",
+    "numeroInterno",
+    "empresa",
+    "tipoVehiculo",
 ] as const;
+
+export type ImportRequiredHeaderKey = (typeof IMPORT_REQUIRED_HEADER_KEYS)[number];
+
+export const IMPORT_REQUIRED_HEADER_LABELS = {
+    patente: "Patente",
+    numeroInterno: "N°Interno",
+    empresa: "Empresa",
+    tipoVehiculo: "Tipo vehiculo",
+} as const satisfies Record<ImportRequiredHeaderKey, string>;
+
+export const IMPORT_REQUIRED_HEADERS = IMPORT_REQUIRED_HEADER_KEYS.map(
+    (key) => IMPORT_REQUIRED_HEADER_LABELS[key],
+);
+
+export const IMPORT_HEADER_ALIASES = {
+    patente: [
+        "Patente",
+        "Pat",
+        "Placa",
+        "PPU",
+    ],
+    numeroInterno: [
+        "N°Interno",
+        "N° Interno",
+        "Nro Interno",
+        "Nro. Interno",
+        "Numero Interno",
+        "Num Interno",
+        "Codigo Interno",
+    ],
+    empresa: [
+        "Empresa",
+        "Contratista",
+        "Razon Social",
+    ],
+    tipoVehiculo: [
+        "Tipo vehiculo",
+        "Tipo vehículo",
+        "Tipo",
+        "Clase vehiculo",
+        "Clase vehículo",
+    ],
+} as const satisfies Record<ImportRequiredHeaderKey, readonly string[]>;
 
 export const IMPORT_ALLOWED_EXTENSION = ".xlsx";
 export const IMPORT_ALLOWED_MIME_TYPES = [

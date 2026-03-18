@@ -13,7 +13,6 @@ import {
 export type EventoAccesoReportFilters = {
     plate: string;
     contratistaId: number | null;
-    choferId: number | null;
     porteriaId: number | null;
     tipoEvento: TipoEventoAcceso | "";
     startDate: string;
@@ -33,7 +32,6 @@ export function parseTipoEvento(value: string | null | undefined): TipoEventoAcc
 export function parseEventoAccesoReportFilters(input: {
     plate?: string | null;
     contratistaId?: string | null;
-    choferId?: string | null;
     porteriaId?: string | null;
     tipoEvento?: string | null;
     startDate?: string | null;
@@ -42,7 +40,6 @@ export function parseEventoAccesoReportFilters(input: {
     return {
         plate: normalizeLicensePlate(input.plate ?? ""),
         contratistaId: parsePositiveInteger(input.contratistaId),
-        choferId: parsePositiveInteger(input.choferId),
         porteriaId: parsePositiveInteger(input.porteriaId),
         tipoEvento: parseTipoEvento(input.tipoEvento),
         startDate: parseDateInput(input.startDate),
@@ -61,10 +58,6 @@ export function buildEventoAccesoWhereInput(filters: EventoAccesoReportFilters) 
 
     if (filters.contratistaId) {
         where.contratistaId = filters.contratistaId;
-    }
-
-    if (filters.choferId) {
-        where.choferId = filters.choferId;
     }
 
     if (filters.porteriaId) {
@@ -93,10 +86,6 @@ export function buildEventoAccesoExportSearchParams(filters: EventoAccesoReportF
 
     if (filters.contratistaId) {
         searchParams.set("contratistaId", String(filters.contratistaId));
-    }
-
-    if (filters.choferId) {
-        searchParams.set("choferId", String(filters.choferId));
     }
 
     if (filters.porteriaId) {
@@ -133,16 +122,12 @@ export function buildTodayDateRange(reference = new Date()) {
 
 export function formatEstadoRecintoLabel(value: EstadoRecintoVehiculo | null | undefined) {
     if (value === "DENTRO") {
-        return "DENTRO";
+        return "EN FAENA";
     }
 
-    if (value === "FUERA") {
-        return "FUERA";
+    if (value === "EN_TRANSITO") {
+        return "EN TRÁNSITO";
     }
 
-    return "Sin estado";
-}
-
-export function formatChoferLabel(nombre: string | null | undefined) {
-    return nombre?.trim() ? nombre : "Sin chofer";
+    return "FUERA DE FAENA";
 }

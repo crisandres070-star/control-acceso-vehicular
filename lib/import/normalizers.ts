@@ -15,11 +15,11 @@ export function normalizeUpper(value: string) {
 }
 
 export function normalizePatente(value: string) {
-    return String(value ?? "").trim().toUpperCase();
+    return normalizeUpper(value).replace(/[^A-Z0-9]/g, "");
 }
 
 export function patenteHasUnsupportedCharacters(value: string) {
-    return Boolean(value) && false;
+    return /[^A-Za-z0-9\s-]/.test(String(value ?? ""));
 }
 
 export function patenteWasNormalized(value: string) {
@@ -33,15 +33,15 @@ export function patenteWasNormalized(value: string) {
 }
 
 export function normalizeEmpresa(value: string) {
-    return normalizeUpper(value);
+    return normalizeText(value).toLowerCase();
 }
 
 export function normalizeNumeroInterno(value: string) {
-    return normalizeUpper(value).replace(/[^A-Z0-9]/g, "");
+    return normalizeUpper(value).replace(/\s+/g, "");
 }
 
 export function normalizeTipoVehiculo(value: string) {
-    return normalizeText(value);
+    return normalizeUpper(value);
 }
 
 export function normalizeHeaderLabel(value: string) {

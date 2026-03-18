@@ -16,10 +16,10 @@ import { prisma } from "@/lib/prisma";
 
 import {
     buildEventoAccesoWhereInput,
-    formatChoferLabel,
     formatEstadoRecintoLabel,
     parseEventoAccesoReportFilters,
 } from "../report-helpers";
+import { getOperationalPorteriaName } from "@/lib/porterias";
 
 export const runtime = "nodejs";
 
@@ -30,12 +30,10 @@ type EventoExportRow = {
     numeroInterno: string;
     empresa: string;
     contratista: string;
-    chofer: string;
-    rutChofer: string;
     porteria: string;
     tipoVehiculo: string;
     marca: string;
-    estado: string;
+    estadoActual: string;
     resultado: string;
     tipoEvento: string;
     usuarioOperador: string;
@@ -51,12 +49,10 @@ const columns = [
     { header: "N° interno", key: "numeroInterno", width: 18, value: (row) => row.numeroInterno },
     { header: "Empresa", key: "empresa", width: 24, value: (row) => row.empresa },
     { header: "Contratista", key: "contratista", width: 28, value: (row) => row.contratista },
-    { header: "Chofer", key: "chofer", width: 24, value: (row) => row.chofer },
-    { header: "RUT chofer", key: "rutChofer", width: 18, value: (row) => row.rutChofer },
     { header: "Portería", key: "porteria", width: 18, value: (row) => row.porteria },
     { header: "Tipo de vehículo", key: "tipoVehiculo", width: 20, value: (row) => row.tipoVehiculo },
     { header: "Marca", key: "marca", width: 18, value: (row) => row.marca },
-    { header: "Estado", key: "estado", width: 16, value: (row) => row.estado, alignment: "center" },
+    { header: "Estado actual", key: "estadoActual", width: 18, value: (row) => row.estadoActual, alignment: "center" },
     {
         header: "Resultado",
         key: "resultado",
@@ -83,7 +79,6 @@ export async function GET(request: Request) {
     const filters = parseEventoAccesoReportFilters({
         plate: searchParams.get("plate"),
         contratistaId: searchParams.get("contratistaId"),
-        choferId: searchParams.get("choferId"),
         porteriaId: searchParams.get("porteriaId"),
         tipoEvento: searchParams.get("tipoEvento"),
         startDate: searchParams.get("startDate"),
@@ -114,15 +109,10 @@ export async function GET(request: Request) {
                     razonSocial: true,
                 },
             },
-            chofer: {
-                select: {
-                    nombre: true,
-                    rut: true,
-                },
-            },
             porteria: {
                 select: {
                     nombre: true,
+                    orden: true,
                 },
             },
         },
@@ -144,17 +134,17 @@ export async function GET(request: Request) {
         numeroInterno: evento.vehiculo.codigoInterno,
         empresa: evento.vehiculo.company,
         contratista: evento.contratista.razonSocial,
-        chofer: formatChoferLabel(evento.chofer?.nombre),
-        rutChofer: evento.chofer?.rut ?? "Sin RUT informado",
-        porteria: evento.porteria.nombre,
+        porteria: getOperationalPorteriaName(evento.porteria),
         tipoVehiculo: evento.vehiculo.vehicleType,
         marca: evento.vehiculo.brand,
-        estado: formatEstadoRecintoLabel(evento.vehiculo.estadoRecinto),
+        estadoActual: formatEstadoRecintoLabel(evento.vehiculo.estadoRecinto),
         resultado: evento.tipoEvento === "ENTRADA" ? "Entrada válida" : "Salida válida",
         tipoEvento: evento.tipoEvento,
         usuarioOperador: evento.operadoPorUsername ?? "No informado",
         rolOperador: evento.operadoPorRole === "ADMIN" ? "Administrador" : evento.operadoPorRole === "USER" ? "Portería" : "No informado",
-        porteriaOperador: evento.operadoPorPorteriaNombre ?? "Sin asociación",
+        porteriaOperador: evento.operadoPorPorteriaNombre
+            ? getOperationalPorteriaName(evento.operadoPorPorteriaNombre)
+            : "Sin asociación",
         observacion: evento.observacion?.trim() || "Sin observación",
     }));
     const suffix = buildExportSuffix(suffixParts);
@@ -165,7 +155,7 @@ export async function GET(request: Request) {
             filename,
             sheetName: "Eventos de acceso",
             title: "Eventos de acceso V2",
-            subtitle: `Generado el ${formatExportDateTime(new Date())}. Reporte operativo con vehículo, chofer, portería y resultado del movimiento.`,
+            subtitle: `Generado el ${formatExportDateTime(new Date())}. Reporte operativo con vehículo, portería, resultado y observación del movimiento.`,
             columns,
             rows,
         });

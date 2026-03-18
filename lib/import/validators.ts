@@ -3,6 +3,8 @@ import {
     IMPORT_ALLOWED_MIME_TYPES,
     IMPORT_MAX_FILE_SIZE_BYTES,
     IMPORT_MAX_FILE_SIZE_LABEL,
+    IMPORT_REQUIRED_HEADER_LABELS,
+    IMPORT_REQUIRED_HEADER_KEYS,
     IMPORT_REQUIRED_HEADERS,
 } from "@/lib/import/constants";
 import {
@@ -111,22 +113,21 @@ export function validateSingleSheetWorkbook(sheetCount: number) {
 export function validateExactHeaders(headers: string[]) {
     const expectedHeaders = IMPORT_REQUIRED_HEADERS.map((header) => normalizeHeaderLabel(header));
     const normalizedHeaders = headers.map((header) => normalizeHeaderLabel(header));
-    const headerCountMatches = headers.length === IMPORT_REQUIRED_HEADERS.length;
-    const headerContentMatches = expectedHeaders.every((header, index) => normalizedHeaders[index] === header);
+    const missingHeaders = expectedHeaders.filter((header) => !normalizedHeaders.includes(header));
 
-    if (headerCountMatches && headerContentMatches) {
+    if (missingHeaders.length === 0) {
         return [] satisfies ImportIssue[];
     }
 
-    const detectedHeadersLabel = headers.length > 0
-        ? headers.map((header) => header || "(vacío)").join(", ")
-        : "sin encabezados detectables";
+    const missingLabels = IMPORT_REQUIRED_HEADER_KEYS
+        .filter((key) => missingHeaders.includes(normalizeHeaderLabel(IMPORT_REQUIRED_HEADER_LABELS[key])))
+        .map((key) => IMPORT_REQUIRED_HEADER_LABELS[key]);
 
     return [createImportIssue({
-        code: "invalid-headers",
+        code: "missing-required-headers",
         severity: "critical",
         field: "Encabezados",
-        message: `Los encabezados son inválidos. El archivo debe tener exactamente estas columnas y en este orden: ${IMPORT_REQUIRED_HEADERS.join(", ")}. Encabezados detectados: ${detectedHeadersLabel}.`,
+        message: `Faltan columnas obligatorias en el encabezado: ${missingLabels.join(", ")}.`,
     })];
 }
 
@@ -189,33 +190,31 @@ export function validateParsedExcelRow(row: ParsedExcelImportRow) {
         }));
     }
 
-    if (!row.numeroInterno && normalizedNumeroInternoOriginal) {
-        issues.push(createImportIssue({
-            code: "invalid-internal-code",
-            severity: "warning",
-            field: "N°Interno",
-            rowNumber: row.__row,
-            message: "El N°Interno contiene caracteres no válidos y se usará PENDIENTE al crear el vehículo.",
-        }));
-    }
-
     if (!normalizedNumeroInternoOriginal) {
         issues.push(createImportIssue({
             code: "missing-internal-code",
-            severity: "warning",
+            severity: "critical",
             field: "N°Interno",
             rowNumber: row.__row,
-            message: "La fila no informa N°Interno y se usará PENDIENTE al crear el vehículo.",
+            message: "El N°Interno es obligatorio.",
+        }));
+    } else if (!row.numeroInterno) {
+        issues.push(createImportIssue({
+            code: "invalid-internal-code",
+            severity: "critical",
+            field: "N°Interno",
+            rowNumber: row.__row,
+            message: "El N°Interno no es válido después de normalizarlo.",
         }));
     }
 
     if (!normalizedTipoVehiculoOriginal) {
         issues.push(createImportIssue({
             code: "missing-vehicle-type",
-            severity: "warning",
+            severity: "critical",
             field: "Tipo vehiculo",
             rowNumber: row.__row,
-            message: "La fila no informa Tipo vehiculo y se usará NO INFORMADO al crear el vehículo.",
+            message: "El Tipo vehiculo es obligatorio.",
         }));
     }
 

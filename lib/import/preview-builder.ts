@@ -1,6 +1,8 @@
+import { Prisma } from "@prisma/client";
+
 import { prisma } from "@/lib/prisma";
 
-import { normalizeEmpresa, normalizeText } from "@/lib/import/normalizers";
+import { normalizeEmpresa, normalizePatente, normalizeText } from "@/lib/import/normalizers";
 import type {
     ImportDuplicateItem,
     ImportIssue,
@@ -49,6 +51,68 @@ function groupRowsByKey(rows: ParsedExcelImportRow[], getKey: (row: ParsedExcelI
     }
 
     return groups;
+}
+
+function chunkRows<T>(items: T[], chunkSize: number) {
+    const chunks: T[][] = [];
+
+    for (let index = 0; index < items.length; index += chunkSize) {
+        chunks.push(items.slice(index, index + chunkSize));
+    }
+
+    return chunks;
+}
+
+async function loadExistingVehicleRecordsByNormalizedPlates(normalizedPlates: string[]) {
+    if (normalizedPlates.length === 0) {
+        return [] as ExistingVehicleRecord[];
+    }
+
+    const foundVehicleIds = new Set<number>();
+
+    for (const plateChunk of chunkRows(normalizedPlates, 400)) {
+        const rows = await prisma.$queryRaw<Array<{ id: number }>>(
+            Prisma.sql`
+                SELECT id
+                FROM vehicles
+                WHERE UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) IN (${Prisma.join(plateChunk)})
+            `,
+        );
+
+        for (const row of rows) {
+            foundVehicleIds.add(row.id);
+        }
+    }
+
+    if (foundVehicleIds.size === 0) {
+        return [] as ExistingVehicleRecord[];
+    }
+
+    const records: ExistingVehicleRecord[] = [];
+
+    for (const idChunk of chunkRows(Array.from(foundVehicleIds), 500)) {
+        const chunkRecords = await prisma.vehicle.findMany({
+            where: {
+                id: {
+                    in: idChunk,
+                },
+            },
+            select: {
+                id: true,
+                licensePlate: true,
+                company: true,
+                contratista: {
+                    select: {
+                        razonSocial: true,
+                    },
+                },
+            },
+        });
+
+        records.push(...chunkRecords);
+    }
+
+    return records;
 }
 
 export function buildNormalizedContratistaLookup(records: ExistingContratistaLookupRecord[]) {
@@ -179,28 +243,18 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
             (row) => !conflictingPlateKeys.has(row.patente) && !criticalIssueRowNumbers.has(row.__row),
         );
     const uniquePlates = Array.from(new Set(importRows.map((row) => row.patente))).filter(Boolean);
-    const existingVehicleRecords = uniquePlates.length > 0
-        ? await prisma.vehicle.findMany({
-            where: {
-                licensePlate: {
-                    in: uniquePlates,
-                },
-            },
-            select: {
-                id: true,
-                licensePlate: true,
-                company: true,
-                contratista: {
-                    select: {
-                        razonSocial: true,
-                    },
-                },
-            },
-        })
-        : [];
-    const existingVehicleLookup = new Map<string, ExistingVehicleRecord>(
-        existingVehicleRecords.map((vehicle) => [vehicle.licensePlate, vehicle]),
-    );
+    const existingVehicleRecords = await loadExistingVehicleRecordsByNormalizedPlates(uniquePlates);
+    const existingVehicleLookup = new Map<string, ExistingVehicleRecord>();
+
+    for (const vehicleRecord of existingVehicleRecords) {
+        const normalizedPlate = normalizePatente(vehicleRecord.licensePlate);
+
+        if (!normalizedPlate || existingVehicleLookup.has(normalizedPlate)) {
+            continue;
+        }
+
+        existingVehicleLookup.set(normalizedPlate, vehicleRecord);
+    }
 
     const contractorItems = Array.from(empresaGroups.entries())
         .filter(([empresaKey]) => Boolean(empresaKey))
@@ -256,12 +310,16 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
         })
         .sort((left, right) => left.patente.localeCompare(right.patente, "es"));
 
-    if (parsed.nonEmptyRowCount > 0 && importRows.length === 0 && !issues.some((issue) => issue.severity === "critical")) {
+    if (
+        parsed.nonEmptyRowCount > 0
+        && importRows.length === 0
+        && !issues.some((issue) => issue.severity === "critical" && typeof issue.rowNumber !== "number")
+    ) {
         issues.push(createImportIssue({
             code: "no-importable-rows",
             severity: "critical",
             field: "Importación",
-            message: "No se encontraron filas válidas para importar después de aplicar las validaciones y duplicados internos.",
+            message: "No se encontraron filas válidas para importar despues de aplicar validaciones por fila y duplicados internos.",
         }));
     }
 
@@ -269,10 +327,19 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
     const contractorExistingItems = contractorItems.filter((item) => item.status === "existing");
     const vehicleNewItems = vehicleItems.filter((item) => item.status === "new");
     const vehicleExistingItems = vehicleItems.filter((item) => item.status === "existing");
-    const criticalErrors = issues.filter((issue) => issue.severity === "critical").length;
-    const canImport = criticalErrors === 0 && (contractorNewItems.length > 0 || vehicleNewItems.length > 0);
+    const globalCriticalErrors = issues.filter(
+        (issue) => issue.severity === "critical" && typeof issue.rowNumber !== "number",
+    ).length;
+    const rowCriticalErrors = new Set(
+        issues
+            .filter((issue) => issue.severity === "critical" && typeof issue.rowNumber === "number")
+            .map((issue) => issue.rowNumber as number),
+    ).size;
+    const canImport = globalCriticalErrors === 0
+        && importRows.length > 0
+        && (contractorNewItems.length > 0 || vehicleNewItems.length > 0);
 
-    if (!canImport && criticalErrors === 0) {
+    if (!canImport && globalCriticalErrors === 0 && importRows.length > 0) {
         issues.push(createImportIssue({
             code: "nothing-to-import",
             severity: "warning",
@@ -288,6 +355,7 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
         summary: {
             totalRows: parsed.nonEmptyRowCount,
             validRows: importRows.length,
+            invalidRows: rowCriticalErrors,
             blankRows: parsed.blankRowNumbers.length,
             newContractors: contractorNewItems.length,
             existingContractors: contractorExistingItems.length,
@@ -296,6 +364,8 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
             duplicateInternal: duplicates.filter((duplicate) => !duplicate.critical).length,
             warnings: issues.filter((issue) => issue.severity === "warning").length,
             criticalErrors: issues.filter((issue) => issue.severity === "critical").length,
+            globalCriticalErrors,
+            rowCriticalErrors,
             canImport,
         },
         issues: [...issues].sort(sortIssues),

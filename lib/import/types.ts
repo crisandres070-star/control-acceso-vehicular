@@ -79,6 +79,7 @@ export type ImportPreviewVehicleItem = {
 export type ImportPreviewSummary = {
     totalRows: number;
     validRows: number;
+    invalidRows: number;
     blankRows: number;
     newContractors: number;
     existingContractors: number;
@@ -87,6 +88,8 @@ export type ImportPreviewSummary = {
     duplicateInternal: number;
     warnings: number;
     criticalErrors: number;
+    globalCriticalErrors: number;
+    rowCriticalErrors: number;
     canImport: boolean;
 };
 
@@ -123,6 +126,9 @@ export type ImportExecutionResult = {
     existingContractors: number;
     createdVehicles: number;
     existingVehicles: number;
+    validRows: number;
+    invalidRows: number;
+    omittedDuplicates: number;
     duplicateInternal: number;
     warnings: number;
     totalRows: number;

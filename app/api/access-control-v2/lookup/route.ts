@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 
+import {
+    accessLookupDebugLog,
+    getVehicleLookupDiagnostics,
+    loadVehicleForLookup,
+} from "@/lib/access-control/vehicle-lookup";
+import { getOperationalPorteriaName } from "@/lib/porterias";
+import { summarizeMovementCycleFromTypes } from "@/lib/access-control/state-utils";
 import { getSession } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
 import { normalizeLicensePlate } from "@/lib/utils";
 
 export async function POST(request: Request) {
@@ -25,91 +31,34 @@ export async function POST(request: Request) {
         );
     }
 
-    const vehicle = await prisma.vehicle.findUnique({
-        where: { licensePlate },
-        select: {
-            id: true,
-            name: true,
-            licensePlate: true,
-            codigoInterno: true,
-            vehicleType: true,
-            brand: true,
-            modelo: true,
-            company: true,
-            accessStatus: true,
-            estadoRecinto: true,
-            contratista: {
-                select: {
-                    id: true,
-                    razonSocial: true,
-                    rut: true,
-                    contacto: true,
-                    telefono: true,
-                },
-            },
-            vehiculoChoferes: {
-                orderBy: {
-                    chofer: {
-                        nombre: "asc",
-                    },
-                },
-                select: {
-                    chofer: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            rut: true,
-                            codigoInterno: true,
-                            contratistaId: true,
-                        },
-                    },
-                },
-            },
-            eventosAcceso: {
-                take: 1,
-                orderBy: {
-                    fechaHora: "desc",
-                },
-                select: {
-                    tipoEvento: true,
-                    fechaHora: true,
-                    operadoPorUsername: true,
-                    operadoPorRole: true,
-                    operadoPorPorteriaNombre: true,
-                    porteria: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                        },
-                    },
-                    chofer: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                        },
-                    },
-                },
-            },
-        },
-    });
+    const lookup = await loadVehicleForLookup(licensePlate);
+    const vehicle = lookup.vehicle;
 
     if (!vehicle) {
+        accessLookupDebugLog(
+            "lookup-route",
+            "No se encontró vehículo en la estructura real esperada por Prisma.",
+            await getVehicleLookupDiagnostics(licensePlate),
+        );
+
         return NextResponse.json(
             { error: "No se encontró un vehículo con esa patente." },
             { status: 404 },
         );
     }
 
-    const vehicleContractorId = vehicle.contratista?.id ?? null;
-    const authorizedDrivers = vehicle.vehiculoChoferes
-        .filter((assignment) => vehicleContractorId !== null && assignment.chofer.contratistaId === vehicleContractorId)
-        .map((assignment) => ({
-            id: assignment.chofer.id,
-            nombre: assignment.chofer.nombre,
-            rut: assignment.chofer.rut,
-            codigoInterno: assignment.chofer.codigoInterno,
-        }));
+    accessLookupDebugLog("lookup-route", "Vehículo encontrado correctamente.", {
+        vehicleId: vehicle.id,
+        normalizedLicensePlate: lookup.normalizedLicensePlate,
+        lookupMethod: lookup.method,
+        accessStatus: vehicle.accessStatus,
+        contratistaId: vehicle.contratista?.id ?? null,
+    });
+
     const lastEvent = vehicle.eventosAcceso[0] ?? null;
+    const movementSummary = summarizeMovementCycleFromTypes(
+        vehicle.eventosAcceso.map((event) => event.tipoEvento),
+    );
 
     return NextResponse.json({
         vehicle: {
@@ -122,20 +71,31 @@ export async function POST(request: Request) {
             modelo: vehicle.modelo,
             company: vehicle.company,
             accessStatus: vehicle.accessStatus,
-            estadoRecinto: vehicle.estadoRecinto,
+            estadoRecinto: movementSummary.persistedState,
+            estadoOperativo: movementSummary.operationalState,
             contratista: vehicle.contratista,
-            choferes: authorizedDrivers,
             ultimoEvento: lastEvent
                 ? {
                     tipoEvento: lastEvent.tipoEvento,
                     fechaHora: lastEvent.fechaHora,
                     operadoPorUsername: lastEvent.operadoPorUsername,
                     operadoPorRole: lastEvent.operadoPorRole,
-                    operadoPorPorteriaNombre: lastEvent.operadoPorPorteriaNombre,
-                    porteria: lastEvent.porteria,
-                    chofer: lastEvent.chofer,
+                    operadoPorPorteriaNombre: lastEvent.operadoPorPorteriaNombre
+                        ? getOperationalPorteriaName(lastEvent.operadoPorPorteriaNombre)
+                        : null,
+                    porteria: {
+                        ...lastEvent.porteria,
+                        nombre: getOperationalPorteriaName(lastEvent.porteria),
+                    },
+                    observacion: lastEvent.observacion,
                 }
                 : null,
+            movementSummary: {
+                currentCycleType: movementSummary.currentCycleType,
+                currentCycleCount: movementSummary.currentCycleCount,
+                requiredMovements: movementSummary.requiredMovements,
+                remainingMovements: movementSummary.remainingMovements,
+            },
         },
     });
 }

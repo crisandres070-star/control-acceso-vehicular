@@ -1,8 +1,58 @@
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
+import { resolveOperatorContext } from "@/lib/access-control/operator-context";
 import { prisma } from "@/lib/prisma";
 import { normalizeLicensePlate } from "@/lib/utils";
+
+const CHECK_ACCESS_INCLUDE = {
+    vehiculoChoferes: {
+        orderBy: {
+            chofer: {
+                nombre: "asc" as const,
+            },
+        },
+        select: {
+            chofer: {
+                select: {
+                    id: true,
+                    nombre: true,
+                    rut: true,
+                    contratistaId: true,
+                },
+            },
+        },
+    },
+} as const;
+
+async function loadVehicleForCheckAccess(licensePlate: string) {
+    const directMatch = await prisma.vehicle.findUnique({
+        where: { licensePlate },
+        include: CHECK_ACCESS_INCLUDE,
+    });
+
+    if (directMatch) {
+        return directMatch;
+    }
+
+    const fallbackRows = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT id
+        FROM vehicles
+        WHERE UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) = ${licensePlate}
+        ORDER BY id ASC
+        LIMIT 1
+    `;
+    const fallbackId = fallbackRows[0]?.id;
+
+    if (!fallbackId) {
+        return null;
+    }
+
+    return prisma.vehicle.findUnique({
+        where: { id: fallbackId },
+        include: CHECK_ACCESS_INCLUDE,
+    });
+}
 
 type VehicleLookup = {
     id: number;
@@ -47,29 +97,9 @@ export async function POST(request: Request) {
         );
     }
 
-    const vehicleRecord = await prisma.vehicle.findUnique({
-        where: { licensePlate },
-        include: {
-            vehiculoChoferes: {
-                orderBy: {
-                    chofer: {
-                        nombre: "asc",
-                    },
-                },
-                select: {
-                    chofer: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            rut: true,
-                            contratistaId: true,
-                        },
-                    },
-                },
-            },
-        },
-    });
+    const vehicleRecord = await loadVehicleForCheckAccess(licensePlate);
     const vehicle = vehicleRecord as VehicleLookup | null;
+    const operator = await resolveOperatorContext(prisma, session);
 
     const result = vehicle?.accessStatus === "YES" ? "YES" : "NO";
     const vehicleDetails = vehicle
@@ -105,10 +135,10 @@ export async function POST(request: Request) {
         codigoInterno: vehicle?.codigoInterno ?? null,
         name: vehicleDetails.name,
         result,
-        operatorUserId: session.userId ?? null,
-        operatorUsername: session.username,
-        operatorRole: session.role,
-        operatorPorteriaNombre: session.porteriaNombre ?? null,
+        operatorUserId: operator.operatorId,
+        operatorUsername: operator.operatorUsername,
+        operatorRole: operator.operatorRole,
+        operatorPorteriaNombre: operator.operatorPorteriaNombre,
     };
 
     await prisma.accessLog.create({

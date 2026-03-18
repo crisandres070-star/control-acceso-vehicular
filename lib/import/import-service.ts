@@ -3,17 +3,15 @@ import { randomUUID } from "node:crypto";
 import { Prisma } from "@prisma/client";
 
 import {
-    DEFAULT_IMPORTED_INTERNAL_CODE,
     DEFAULT_IMPORTED_VEHICLE_ACCESS_STATUS,
     DEFAULT_IMPORTED_VEHICLE_BRAND,
     DEFAULT_IMPORTED_VEHICLE_NAME_PREFIX,
-    DEFAULT_IMPORTED_VEHICLE_TYPE,
     IMPORT_PREVIEW_TTL_MS,
     SYNTHETIC_CONTRATISTA_RUT_MIN,
     SYNTHETIC_CONTRATISTA_RUT_RANGE,
 } from "@/lib/import/constants";
 import { parseSingleSheetExcel } from "@/lib/import/excel-single-sheet-parser";
-import { normalizeEmpresa } from "@/lib/import/normalizers";
+import { normalizeEmpresa, normalizePatente } from "@/lib/import/normalizers";
 import { buildImportPreview, buildNormalizedContratistaLookup } from "@/lib/import/preview-builder";
 import type {
     ImportExecutionResult,
@@ -31,6 +29,7 @@ type ContratistaTransactionRecord = {
 };
 
 type ImportPreviewStoreClient = Prisma.TransactionClient | typeof prisma;
+type ImportPersistenceClient = Prisma.TransactionClient | typeof prisma;
 
 type ImportacionPreviewRecord = {
     id: string;
@@ -264,6 +263,78 @@ function chunkRows<T>(items: T[], chunkSize: number) {
     return chunks;
 }
 
+async function loadContratistaRecords(client: ImportPersistenceClient) {
+    return client.contratista.findMany({
+        select: {
+            id: true,
+            razonSocial: true,
+            rut: true,
+        },
+    });
+}
+
+function rebuildContractorLookup(
+    records: ContratistaTransactionRecord[],
+    contractorLookup: Map<string, ContratistaTransactionRecord>,
+    usedRuts: Set<string>,
+) {
+    contractorLookup.clear();
+    usedRuts.clear();
+
+    for (const record of records) {
+        contractorLookup.set(normalizeEmpresa(record.razonSocial), record);
+        usedRuts.add(record.rut);
+    }
+}
+
+async function loadExistingVehicleRecordsByNormalizedPlates(
+    client: ImportPersistenceClient,
+    normalizedPlates: string[],
+) {
+    if (normalizedPlates.length === 0) {
+        return [] as Array<{ licensePlate: string }>;
+    }
+
+    const foundVehicleIds = new Set<number>();
+
+    for (const plateChunk of chunkRows(normalizedPlates, 400)) {
+        const rows = await client.$queryRaw<Array<{ id: number }>>(
+            Prisma.sql`
+                SELECT id
+                FROM vehicles
+                WHERE UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) IN (${Prisma.join(plateChunk)})
+            `,
+        );
+
+        for (const row of rows) {
+            foundVehicleIds.add(row.id);
+        }
+    }
+
+    if (foundVehicleIds.size === 0) {
+        return [] as Array<{ licensePlate: string }>;
+    }
+
+    const records: Array<{ licensePlate: string }> = [];
+
+    for (const idChunk of chunkRows(Array.from(foundVehicleIds), 500)) {
+        const chunkRecords = await client.vehicle.findMany({
+            where: {
+                id: {
+                    in: idChunk,
+                },
+            },
+            select: {
+                licensePlate: true,
+            },
+        });
+
+        records.push(...chunkRecords);
+    }
+
+    return records;
+}
+
 function buildCompanyGroups(rows: ParsedExcelImportRow[]) {
     const groups = new Map<string, { empresa: string; empresaKey: string }>();
 
@@ -281,8 +352,8 @@ function buildCompanyGroups(rows: ParsedExcelImportRow[]) {
     return Array.from(groups.values()).sort((left, right) => left.empresa.localeCompare(right.empresa, "es"));
 }
 
-async function ensureContratistaInTransaction(
-    tx: Prisma.TransactionClient,
+async function ensureContratistaForImport(
+    client: ImportPersistenceClient,
     company: { empresa: string; empresaKey: string },
     contractorLookup: Map<string, ContratistaTransactionRecord>,
     usedRuts: Set<string>,
@@ -300,7 +371,7 @@ async function ensureContratistaInTransaction(
         const rut = buildSyntheticContratistaRut(company.empresaKey, usedRuts);
 
         try {
-            const createdRecord = await tx.contratista.create({
+            const createdRecord = await client.contratista.create({
                 data: {
                     razonSocial: company.empresa,
                     rut,
@@ -326,22 +397,14 @@ async function ensureContratistaInTransaction(
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
                 usedRuts.add(rut);
 
-                const refreshedRecords = await tx.contratista.findMany({
-                    select: {
-                        id: true,
-                        razonSocial: true,
-                        rut: true,
-                    },
-                });
+                const refreshedRecords = await loadContratistaRecords(client);
                 const refreshedLookup = buildNormalizedContratistaLookup(refreshedRecords);
 
                 if (refreshedLookup.ambiguousKeys.length > 0) {
                     throw new Error("La base de datos contiene contratistas ambiguos por razón social normalizada.");
                 }
 
-                for (const record of refreshedRecords) {
-                    contractorLookup.set(normalizeEmpresa(record.razonSocial), record);
-                }
+                rebuildContractorLookup(refreshedRecords, contractorLookup, usedRuts);
 
                 const refreshedRecord = contractorLookup.get(company.empresaKey);
 
@@ -363,19 +426,13 @@ async function ensureContratistaInTransaction(
 }
 
 async function executeImportRows(
-    tx: Prisma.TransactionClient,
+    client: ImportPersistenceClient,
     rows: ParsedExcelImportRow[],
     preview: ImportPreview,
 ): Promise<ImportExecutionResult> {
     const uniquePlates = Array.from(new Set(rows.map((row) => row.patente))).filter(Boolean);
     const companyGroups = buildCompanyGroups(rows);
-    const existingContractorRecords = await tx.contratista.findMany({
-        select: {
-            id: true,
-            razonSocial: true,
-            rut: true,
-        },
-    });
+    const existingContractorRecords = await loadContratistaRecords(client);
     const contractorLookupResult = buildNormalizedContratistaLookup(existingContractorRecords);
 
     if (contractorLookupResult.ambiguousKeys.length > 0) {
@@ -383,35 +440,67 @@ async function executeImportRows(
     }
 
     const contractorLookup = new Map<string, ContratistaTransactionRecord>();
+    const usedRuts = new Set<string>();
 
-    for (const record of existingContractorRecords) {
-        contractorLookup.set(normalizeEmpresa(record.razonSocial), record);
-    }
+    rebuildContractorLookup(existingContractorRecords, contractorLookup, usedRuts);
 
-    const usedRuts = new Set(existingContractorRecords.map((record) => record.rut));
+    const missingCompanies = companyGroups.filter((company) => !contractorLookup.has(company.empresaKey));
     let createdContractors = 0;
 
-    for (const company of companyGroups) {
-        const result = await ensureContratistaInTransaction(tx, company, contractorLookup, usedRuts);
+    if (missingCompanies.length > 0) {
+        const contractorCreateData = missingCompanies.map((company) => {
+            const rut = buildSyntheticContratistaRut(company.empresaKey, usedRuts);
 
-        if (result.created) {
-            createdContractors += 1;
+            usedRuts.add(rut);
+
+            return {
+                razonSocial: company.empresa,
+                rut,
+                email: null,
+                contacto: null,
+                telefono: null,
+            };
+        });
+
+        for (const chunk of chunkRows(contractorCreateData, 250)) {
+            if (chunk.length === 0) {
+                continue;
+            }
+
+            const result = await client.contratista.createMany({
+                data: chunk,
+                skipDuplicates: true,
+            });
+
+            createdContractors += result.count;
+        }
+
+        const refreshedRecords = await loadContratistaRecords(client);
+        const refreshedLookup = buildNormalizedContratistaLookup(refreshedRecords);
+
+        if (refreshedLookup.ambiguousKeys.length > 0) {
+            throw new Error("La base de datos contiene contratistas ambiguos por razón social normalizada.");
+        }
+
+        rebuildContractorLookup(refreshedRecords, contractorLookup, usedRuts);
+
+        const unresolvedCompanies = companyGroups.filter((company) => !contractorLookup.has(company.empresaKey));
+
+        for (const company of unresolvedCompanies) {
+            const ensuredRecord = await ensureContratistaForImport(client, company, contractorLookup, usedRuts);
+
+            if (ensuredRecord.created) {
+                createdContractors += 1;
+            }
         }
     }
 
-    const existingVehicleRecords = uniquePlates.length > 0
-        ? await tx.vehicle.findMany({
-            where: {
-                licensePlate: {
-                    in: uniquePlates,
-                },
-            },
-            select: {
-                licensePlate: true,
-            },
-        })
-        : [];
-    const existingVehicleSet = new Set(existingVehicleRecords.map((record) => record.licensePlate));
+    const existingVehicleRecords = await loadExistingVehicleRecordsByNormalizedPlates(client, uniquePlates);
+    const existingVehicleSet = new Set(
+        existingVehicleRecords
+            .map((record) => normalizePatente(record.licensePlate))
+            .filter(Boolean),
+    );
     const rowsToCreate = rows.filter((row) => !existingVehicleSet.has(row.patente));
     const vehicleCreateData = rowsToCreate.map((row) => {
         const contractor = contractorLookup.get(row.empresaKey);
@@ -423,8 +512,8 @@ async function executeImportRows(
         return {
             ...buildImportedVehicleIdentity(row.patente),
             licensePlate: row.patente,
-            codigoInterno: row.numeroInterno || DEFAULT_IMPORTED_INTERNAL_CODE,
-            vehicleType: row.tipoVehiculo || DEFAULT_IMPORTED_VEHICLE_TYPE,
+            codigoInterno: row.numeroInterno,
+            vehicleType: row.tipoVehiculo,
             brand: DEFAULT_IMPORTED_VEHICLE_BRAND,
             company: contractor.razonSocial,
             accessStatus: DEFAULT_IMPORTED_VEHICLE_ACCESS_STATUS,
@@ -441,7 +530,7 @@ async function executeImportRows(
             continue;
         }
 
-        const result = await tx.vehicle.createMany({
+        const result = await client.vehicle.createMany({
             data: chunk,
             skipDuplicates: true,
         });
@@ -454,6 +543,9 @@ async function executeImportRows(
         existingContractors: companyGroups.length - createdContractors,
         createdVehicles,
         existingVehicles: uniquePlates.length - createdVehicles,
+        validRows: preview.summary.validRows,
+        invalidRows: preview.summary.invalidRows,
+        omittedDuplicates: (uniquePlates.length - createdVehicles) + preview.summary.duplicateInternal,
         duplicateInternal: preview.summary.duplicateInternal,
         warnings: preview.summary.warnings,
         totalRows: preview.summary.totalRows,
@@ -525,31 +617,31 @@ export async function confirmImportPreview(previewId: string, ownerUsername: str
 
     if (!storedPreview.preview.summary.canImport) {
         throw new ImportPreviewBlockedError(
-            storedPreview.preview.summary.criticalErrors > 0
-                ? "La vista previa contiene errores críticos. Corrija el archivo y vuelva a validarlo."
-                : "El archivo fue validado, pero no contiene registros nuevos para importar.",
+            storedPreview.preview.summary.globalCriticalErrors > 0
+                ? "La vista previa contiene errores estructurales o de integridad que bloquean la importación. Corrija el archivo y vuelva a validarlo."
+                : storedPreview.preview.summary.validRows === 0
+                    ? "El archivo no contiene filas válidas para importar despues de aplicar validaciones por fila."
+                    : "El archivo fue validado, pero no contiene registros nuevos para importar.",
             storedPreview.id,
         );
     }
 
     try {
-        return await prisma.$transaction(async (tx) => {
-            await cleanupExpiredImportPreviews(tx);
+        await cleanupExpiredImportPreviews();
 
-            const result = await executeImportRows(tx, storedPreview.preview.importRows, storedPreview.preview);
-            const deletedPreview = await tx.importacionPreview.deleteMany({
-                where: {
-                    id: storedPreview.id,
-                    ownerUsername,
-                },
-            });
-
-            if (deletedPreview.count !== 1) {
-                throw new ImportPreviewBlockedError(PREVIEW_NOT_FOUND_MESSAGE, storedPreview.id);
-            }
-
-            return result;
+        const result = await executeImportRows(prisma, storedPreview.preview.importRows, storedPreview.preview);
+        const deletedPreview = await prisma.importacionPreview.deleteMany({
+            where: {
+                id: storedPreview.id,
+                ownerUsername,
+            },
         });
+
+        if (deletedPreview.count !== 1) {
+            throw new ImportPreviewBlockedError(PREVIEW_NOT_FOUND_MESSAGE, storedPreview.id);
+        }
+
+        return result;
     } catch (error) {
         if (
             error instanceof ImportPreviewBlockedError

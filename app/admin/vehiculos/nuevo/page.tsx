@@ -54,7 +54,7 @@ export default async function NuevoVehiculoPage({ searchParams }: NuevoVehiculoP
                 action={createVehicleAction}
                 cancelHref="/admin/vehiculos"
                 contratistas={contratistas}
-                description="Ingrese empresa, patente, número interno, tipo de vehículo y marca. Luego autorice uno o más choferes desde asignaciones."
+                description="Ingrese empresa, patente, número interno, tipo de vehículo y marca para dejar el registro listo para portería, historial y dashboard."
                 errorMessage={error}
                 heading="Datos del vehículo"
                 id="vehiculo-form"

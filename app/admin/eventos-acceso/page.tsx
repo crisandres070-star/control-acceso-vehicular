@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { getOperationalPorteriaName, mapOperationalPorterias } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import { getQueryStringValue } from "@/lib/utils";
 
@@ -7,8 +8,6 @@ import {
     buildEventoAccesoExportSearchParams,
     buildEventoAccesoWhereInput,
     buildTodayDateRange,
-    formatChoferLabel,
-    formatEstadoRecintoLabel,
     parseEventoAccesoReportFilters,
 } from "./report-helpers";
 
@@ -16,21 +15,19 @@ type EventoAccesoRow = {
     id: number;
     fechaHora: Date;
     tipoEvento: "ENTRADA" | "SALIDA";
+    observacion: string | null;
     operadoPorUsername: string | null;
     operadoPorRole: "ADMIN" | "USER" | null;
     operadoPorPorteriaNombre: string | null;
     vehiculo: {
         licensePlate: string;
-        estadoRecinto: "DENTRO" | "FUERA" | null;
     };
     contratista: {
         razonSocial: string;
     };
-    chofer: {
-        nombre: string;
-    } | null;
     porteria: {
         nombre: string;
+        orden: number;
     };
 };
 
@@ -39,24 +36,16 @@ type ContratistaOption = {
     razonSocial: string;
 };
 
-type ChoferOption = {
-    id: number;
-    nombre: string;
-    contratista: {
-        razonSocial: string;
-    };
-};
-
 type PorteriaOption = {
     id: number;
     nombre: string;
+    orden: number;
 };
 
 type EventosAccesoPageProps = {
     searchParams: {
         plate?: string | string[];
         contratistaId?: string | string[];
-        choferId?: string | string[];
         porteriaId?: string | string[];
         tipoEvento?: string | string[];
         startDate?: string | string[];
@@ -82,14 +71,13 @@ const timeFormatter = new Intl.DateTimeFormat("es-CL", {
 function getStatusClasses(tipoEvento: "ENTRADA" | "SALIDA") {
     return tipoEvento === "ENTRADA"
         ? "bg-green-50 text-green-700 border-green-200"
-        : "bg-sky-50 text-sky-700 border-sky-200";
+    : "bg-red-50 text-red-700 border-red-200";
 }
 
 export default async function EventosAccesoPage({ searchParams }: EventosAccesoPageProps) {
     const filters = parseEventoAccesoReportFilters({
         plate: getQueryStringValue(searchParams.plate),
         contratistaId: getQueryStringValue(searchParams.contratistaId),
-        choferId: getQueryStringValue(searchParams.choferId),
         porteriaId: getQueryStringValue(searchParams.porteriaId),
         tipoEvento: getQueryStringValue(searchParams.tipoEvento),
         startDate: getQueryStringValue(searchParams.startDate),
@@ -101,12 +89,12 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
     const [
         eventRecords,
         contratistaRecords,
-        choferRecords,
         porteriaRecords,
         eventosHoy,
         entradasHoy,
         salidasHoy,
-        vehiculosDentro,
+        vehiculosEnFaena,
+        vehiculosEnTransito,
         vehiculosFuera,
     ] = await Promise.all([
         prisma.eventoAcceso.findMany({
@@ -115,13 +103,13 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                 id: true,
                 fechaHora: true,
                 tipoEvento: true,
+                observacion: true,
                 operadoPorUsername: true,
                 operadoPorRole: true,
                 operadoPorPorteriaNombre: true,
                 vehiculo: {
                     select: {
                         licensePlate: true,
-                        estadoRecinto: true,
                     },
                 },
                 contratista: {
@@ -129,14 +117,10 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                         razonSocial: true,
                     },
                 },
-                chofer: {
-                    select: {
-                        nombre: true,
-                    },
-                },
                 porteria: {
                     select: {
                         nombre: true,
+                        orden: true,
                     },
                 },
             },
@@ -153,28 +137,13 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                 razonSocial: "asc",
             },
         }),
-        prisma.chofer.findMany({
-            select: {
-                id: true,
-                nombre: true,
-                contratista: {
-                    select: {
-                        razonSocial: true,
-                    },
-                },
-            },
-            orderBy: {
-                nombre: "asc",
-            },
-        }),
         prisma.porteria.findMany({
             select: {
                 id: true,
                 nombre: true,
+                orden: true,
             },
-            orderBy: {
-                nombre: "asc",
-            },
+            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
         }),
         prisma.eventoAcceso.count({
             where: {
@@ -200,19 +169,29 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
         }),
         prisma.vehicle.count({
             where: {
-                estadoRecinto: "FUERA",
+                estadoRecinto: "EN_TRANSITO",
+            },
+        }),
+        prisma.vehicle.count({
+            where: {
+                OR: [
+                    {
+                        estadoRecinto: "FUERA",
+                    },
+                    {
+                        estadoRecinto: null,
+                    },
+                ],
             },
         }),
     ]);
 
     const eventos = eventRecords as unknown as EventoAccesoRow[];
     const contratistas = contratistaRecords as ContratistaOption[];
-    const choferes = choferRecords as ChoferOption[];
-    const porterias = porteriaRecords as PorteriaOption[];
+    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
     const hasFilters = Boolean(
         filters.plate
         || filters.contratistaId
-        || filters.choferId
         || filters.porteriaId
         || filters.tipoEvento
         || filters.startDate
@@ -240,7 +219,7 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                             Seguimiento y reportes
                         </h1>
                         <p className="mt-3 text-sm leading-6 text-slate-600 lg:text-base">
-                            Busque movimientos por patente, contratista, chofer o portería y exporte la información cuando lo necesite.
+                            Busque movimientos por patente, contratista o porteria y exporte el historial cuando lo necesite.
                         </p>
                     </div>
 
@@ -300,20 +279,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                     </div>
 
                     <div className="space-y-2">
-                        <label className="field-label" htmlFor="choferId">
-                            Chofer
-                        </label>
-                        <select className="input-base" defaultValue={filters.choferId ? String(filters.choferId) : ""} id="choferId" name="choferId">
-                            <option value="">Todos los choferes</option>
-                            {choferes.map((chofer) => (
-                                <option key={chofer.id} value={chofer.id}>
-                                    {chofer.nombre} · {chofer.contratista.razonSocial}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="space-y-2">
                         <label className="field-label" htmlFor="porteriaId">
                             Portería
                         </label>
@@ -329,7 +294,7 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
 
                     <div className="space-y-2">
                         <label className="field-label" htmlFor="tipoEvento">
-                            Status
+                            Tipo de evento
                         </label>
                         <select className="input-base" defaultValue={filters.tipoEvento} id="tipoEvento" name="tipoEvento">
                             <option value="">Todos</option>
@@ -376,12 +341,13 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                 </div>
                 <div className="panel px-5 py-5 lg:px-6 lg:py-6">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Salidas</p>
-                    <p className="mt-3 text-4xl font-bold text-sky-700">{salidasHoy}</p>
+                    <p className="mt-3 text-4xl font-bold text-red-700">{salidasHoy}</p>
                 </div>
                 <div className="panel px-5 py-5 lg:px-6 lg:py-6">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Estado del recinto</p>
-                    <p className="mt-3 text-lg font-semibold text-slate-950">Dentro: {vehiculosDentro}</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-950">Fuera: {vehiculosFuera}</p>
+                    <p className="mt-3 text-lg font-semibold text-slate-950">En faena: {vehiculosEnFaena}</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-950">En tránsito: {vehiculosEnTransito}</p>
+                    <p className="mt-1 text-lg font-semibold text-slate-950">Fuera de faena: {vehiculosFuera}</p>
                 </div>
             </section>
 
@@ -400,10 +366,10 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                                 <th className="px-6 py-4">Hora</th>
                                 <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Contratista</th>
-                                <th className="px-6 py-4">Chofer</th>
                                 <th className="px-6 py-4">Portería</th>
+                                <th className="px-6 py-4">Tipo evento</th>
                                 <th className="px-6 py-4">Operador</th>
-                                <th className="rounded-r-[20px] px-6 py-4">Status</th>
+                                <th className="rounded-r-[20px] px-6 py-4">Observación</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-100 bg-white">
@@ -413,25 +379,22 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                                     <td className="px-6 py-5 text-slate-700">{timeFormatter.format(evento.fechaHora)}</td>
                                     <td className="px-6 py-5 font-semibold tracking-[0.18em] text-accent-700">{evento.vehiculo.licensePlate}</td>
                                     <td className="px-6 py-5 text-slate-700">{evento.contratista.razonSocial}</td>
-                                    <td className="px-6 py-5 text-slate-700">{formatChoferLabel(evento.chofer?.nombre)}</td>
-                                    <td className="px-6 py-5 text-slate-700">{evento.porteria.nombre}</td>
+                                    <td className="px-6 py-5 text-slate-700">{getOperationalPorteriaName(evento.porteria)}</td>
+                                    <td className="px-6 py-5">
+                                        <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusClasses(evento.tipoEvento)}`}>
+                                            {evento.tipoEvento}
+                                        </span>
+                                    </td>
                                     <td className="px-6 py-5 text-slate-700">
                                         <p className="font-semibold text-slate-950">{evento.operadoPorUsername ?? "No informado"}</p>
                                         <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
                                             {evento.operadoPorRole === "ADMIN" ? "Administrador" : evento.operadoPorRole === "USER" ? "Portería" : "Sin rol"}
                                         </p>
                                         {evento.operadoPorPorteriaNombre ? (
-                                            <p className="mt-1 text-xs text-slate-500">Cuenta: {evento.operadoPorPorteriaNombre}</p>
+                                            <p className="mt-1 text-xs text-slate-500">Cuenta: {getOperationalPorteriaName(evento.operadoPorPorteriaNombre)}</p>
                                         ) : null}
                                     </td>
-                                    <td className="px-6 py-5">
-                                        <div className="space-y-2">
-                                            <span className={`inline-flex rounded-full border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] ${getStatusClasses(evento.tipoEvento)}`}>
-                                                {evento.tipoEvento}
-                                            </span>
-                                            <p className="text-xs text-slate-500">{formatEstadoRecintoLabel(evento.vehiculo.estadoRecinto)}</p>
-                                        </div>
-                                    </td>
+                                    <td className="px-6 py-5 text-slate-700">{evento.observacion?.trim() || "Sin observación"}</td>
                                 </tr>
                             ))}
                             {eventos.length === 0 ? (

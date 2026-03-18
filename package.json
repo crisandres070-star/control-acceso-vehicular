@@ -10,6 +10,7 @@
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
     "db:seed:users": "tsx scripts/seed-auth-users.ts",
+    "db:seed:staging:sequential": "tsx scripts/seed-staging-sequential.ts",
     "postinstall": "prisma generate"
   },
   "prisma": {

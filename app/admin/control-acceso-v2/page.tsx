@@ -2,25 +2,28 @@ import Link from "next/link";
 
 import { AccessControlV2 } from "@/components/guard/access-control-v2";
 import { requireRole } from "@/lib/auth";
+import { mapOperationalPorterias } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 
 type PorteriaOption = {
     id: number;
     nombre: string;
     telefono: string | null;
+    orden: number;
 };
 
 export default async function AdminControlAccesoV2Page() {
     const session = await requireRole("ADMIN");
     const porteriaRecords = await prisma.porteria.findMany({
-        orderBy: [{ nombre: "asc" }],
+        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
         select: {
             id: true,
             nombre: true,
             telefono: true,
+            orden: true,
         },
     });
-    const porterias = porteriaRecords as PorteriaOption[];
+    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
 
     return (
         <div className="space-y-6">
@@ -34,7 +37,7 @@ export default async function AdminControlAccesoV2Page() {
                             Control de acceso operativo
                         </h2>
                         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                            Registre movimientos reales por patente, chofer autorizado, portería y tipo de evento manteniendo intacto el flujo legacy y reforzando la trazabilidad manual desde administración.
+                            Valide la patente, seleccione la portería y registre una ENTRADA o SALIDA con historial inmediato y estado actualizado del vehículo.
                         </p>
                     </div>
 
@@ -49,7 +52,7 @@ export default async function AdminControlAccesoV2Page() {
                 </div>
             </section>
 
-            <AccessControlV2 assignmentBaseHref="/admin/asignaciones" contextLabel={session.username} porterias={porterias} />
+            <AccessControlV2 contextLabel={session.username} porterias={porterias} />
         </div>
     );
 }

@@ -2,9 +2,34 @@ import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 
 import { getSession } from "@/lib/auth";
+import {
+    getVehicleMovementSummary,
+    hasRecentMovementDuplicate,
+} from "@/lib/access-control/movement-state";
+import { resolveOperatorContext } from "@/lib/access-control/operator-context";
+import {
+    projectMovementCycle,
+} from "@/lib/access-control/state-utils";
+import { getOperationalPorteriaName } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 
 type TipoEventoInput = "ENTRADA" | "SALIDA";
+const DEBUG_EVENT_REGISTRATION = process.env.DEBUG_EVENT_REGISTRATION === "true";
+
+function debugEventRegistration(message: string, data?: unknown) {
+    if (!DEBUG_EVENT_REGISTRATION) {
+        return;
+    }
+
+    const timestamp = new Date().toISOString();
+
+    if (typeof data === "undefined") {
+        console.info(`[${timestamp}] [ACCESS-EVENT] ${message}`);
+        return;
+    }
+
+    console.info(`[${timestamp}] [ACCESS-EVENT] ${message}`, data);
+}
 
 function parsePositiveInteger(value: unknown) {
     const parsed = Number(value);
@@ -26,26 +51,17 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as
         | {
             vehicleId?: unknown;
-            choferId?: unknown;
             porteriaId?: unknown;
             tipoEvento?: unknown;
         }
         | null;
     const vehicleId = parsePositiveInteger(body?.vehicleId);
-    const choferId = parsePositiveInteger(body?.choferId);
     const porteriaId = parsePositiveInteger(body?.porteriaId);
     const tipoEvento = parseTipoEvento(body?.tipoEvento);
 
     if (!vehicleId) {
         return NextResponse.json(
             { error: "Debe indicar un vehículo válido." },
-            { status: 400 },
-        );
-    }
-
-    if (!choferId) {
-        return NextResponse.json(
-            { error: "Debe seleccionar un chofer autorizado." },
             { status: 400 },
         );
     }
@@ -66,6 +82,8 @@ export async function POST(request: Request) {
 
     try {
         const result = await prisma.$transaction(async (tx) => {
+            const operator = await resolveOperatorContext(tx, session);
+
             const vehicle = await tx.vehicle.findUnique({
                 where: { id: vehicleId },
                 select: {
@@ -93,6 +111,7 @@ export async function POST(request: Request) {
                 select: {
                     id: true,
                     nombre: true,
+                    orden: true,
                 },
             });
 
@@ -100,45 +119,37 @@ export async function POST(request: Request) {
                 throw new Error("La portería seleccionada no existe.");
             }
 
-            const assignment = await tx.vehiculoChofer.findUnique({
-                where: {
-                    vehiculoId_choferId: {
-                        vehiculoId: vehicle.id,
-                        choferId,
-                    },
-                },
-                select: {
-                    chofer: {
-                        select: {
-                            id: true,
-                            nombre: true,
-                            contratistaId: true,
-                        },
-                    },
-                },
-            });
+            const porteriaNombre = getOperationalPorteriaName(porteria);
 
-            if (!assignment) {
-                throw new Error("El chofer seleccionado no está autorizado para este vehículo.");
+            const hasDuplicate = await hasRecentMovementDuplicate(
+                tx,
+                vehicle.id,
+                porteria.id,
+                tipoEvento,
+            );
+
+            if (hasDuplicate) {
+                throw new Error(`Ya existe un ${tipoEvento === "ENTRADA" ? "ingreso" : "salida"} reciente en ${porteriaNombre}. Espere un momento antes de repetir el registro.`);
             }
 
-            if (assignment.chofer.contratistaId !== vehicle.contratistaId) {
-                throw new Error("La asignación vigente es inconsistente: el chofer pertenece a otro contratista. Corrija la relación antes de registrar el evento.");
-            }
-
-            const nextEstadoRecinto = tipoEvento === "ENTRADA" ? "DENTRO" : "FUERA";
+            const currentMovementSummary = await getVehicleMovementSummary(tx, vehicle.id);
+            const projectedMovement = projectMovementCycle(
+                currentMovementSummary,
+                tipoEvento,
+            );
 
             const evento = await tx.eventoAcceso.create({
                 data: {
                     vehiculoId: vehicle.id,
                     contratistaId: vehicle.contratistaId,
-                    choferId,
+                    choferId: null,
                     porteriaId: porteria.id,
-                    operadoPorId: session.userId ?? null,
-                    operadoPorUsername: session.username,
-                    operadoPorRole: session.role,
-                    operadoPorPorteriaNombre: session.porteriaNombre ?? null,
+                    operadoPorId: operator.operatorId,
+                    operadoPorUsername: operator.operatorUsername,
+                    operadoPorRole: operator.operatorRole,
+                    operadoPorPorteriaNombre: operator.operatorPorteriaNombre,
                     tipoEvento: tipoEvento as TipoEventoInput,
+                    observacion: projectedMovement.observation,
                 },
                 select: {
                     tipoEvento: true,
@@ -146,16 +157,12 @@ export async function POST(request: Request) {
                     operadoPorUsername: true,
                     operadoPorRole: true,
                     operadoPorPorteriaNombre: true,
+                    observacion: true,
                     porteria: {
                         select: {
                             id: true,
                             nombre: true,
-                        },
-                    },
-                    chofer: {
-                        select: {
-                            id: true,
-                            nombre: true,
+                            orden: true,
                         },
                     },
                 },
@@ -164,30 +171,60 @@ export async function POST(request: Request) {
             await tx.vehicle.update({
                 where: { id: vehicle.id },
                 data: {
-                    estadoRecinto: nextEstadoRecinto,
+                    estadoRecinto: projectedMovement.persistedState,
                 },
             });
 
+            debugEventRegistration("Evento creado correctamente", {
+                vehicleId: vehicle.id,
+                licensePlate: vehicle.licensePlate,
+                tipoEvento,
+                porteriaId: porteria.id,
+                porteriaNombre,
+                operatorResolution: operator.resolution,
+                operadoPorId: operator.operatorId,
+                operadoPorUsername: operator.operatorUsername,
+                currentCycleCount: projectedMovement.currentCycleCount,
+                requiredMovements: projectedMovement.requiredMovements,
+                estadoOperativo: projectedMovement.operationalState,
+            });
+
             return {
-                estadoRecinto: nextEstadoRecinto,
-                ultimoEvento: evento,
-                choferNombre: assignment.chofer.nombre,
-                porteriaNombre: porteria.nombre,
+                estadoRecinto: projectedMovement.persistedState,
+                estadoOperativo: projectedMovement.operationalState,
+                movementSummary: projectedMovement,
+                ultimoEvento: {
+                    ...evento,
+                    porteria: {
+                        ...evento.porteria,
+                        nombre: getOperationalPorteriaName(evento.porteria),
+                    },
+                },
+                porteriaNombre,
                 vehicleLicensePlate: vehicle.licensePlate,
             };
         });
 
         revalidatePath("/admin");
         revalidatePath("/admin/control-acceso-v2");
+        revalidatePath("/admin/dashboard-faena");
         revalidatePath("/admin/eventos-acceso");
         revalidatePath("/admin/logs");
         revalidatePath("/guard");
         revalidatePath("/guard/v2");
 
         return NextResponse.json({
-            message: `${tipoEvento === "ENTRADA" ? "Entrada" : "Salida"} registrada correctamente para la patente ${result.vehicleLicensePlate} en ${result.porteriaNombre} con el chofer ${result.choferNombre}. El movimiento ya quedó disponible en el historial administrativo.`,
+            message: `Movimiento registrado correctamente para la patente ${result.vehicleLicensePlate} en ${result.porteriaNombre}.`,
             estadoRecinto: result.estadoRecinto,
+            estadoOperativo: result.estadoOperativo,
             ultimoEvento: result.ultimoEvento,
+            movementSummary: {
+                currentCycleType: result.movementSummary.currentCycleType,
+                currentCycleCount: result.movementSummary.currentCycleCount,
+                requiredMovements: result.movementSummary.requiredMovements,
+                remainingMovements: result.movementSummary.remainingMovements,
+            },
+            stateChangedTo: result.movementSummary.stateChangedTo,
         });
     } catch (error) {
         return NextResponse.json(

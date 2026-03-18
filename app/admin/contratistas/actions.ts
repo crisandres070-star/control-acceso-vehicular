@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { requireRole } from "@/lib/auth";
+import { normalizeEmpresa } from "@/lib/import/normalizers";
 import {
     getContratistaActionErrorMessage,
     parseContratistaInput,
@@ -14,6 +15,33 @@ const CONTRATISTA_CREATED_MESSAGE = "Contratista guardado exitosamente";
 const CONTRATISTA_UPDATED_MESSAGE = "Contratista actualizado exitosamente";
 const CONTRATISTA_DELETED_MESSAGE = "Contratista eliminado correctamente.";
 
+async function ensureContratistaNormalizedNameUniqueness(razonSocial: string, excludeId?: number) {
+    const normalizedTarget = normalizeEmpresa(razonSocial);
+
+    if (!normalizedTarget) {
+        return;
+    }
+
+    const existingContractors = await prisma.contratista.findMany({
+        select: {
+            id: true,
+            razonSocial: true,
+        },
+    });
+
+    const normalizedConflict = existingContractors.find((contractor) => {
+        if (typeof excludeId === "number" && contractor.id === excludeId) {
+            return false;
+        }
+
+        return normalizeEmpresa(contractor.razonSocial) === normalizedTarget;
+    });
+
+    if (normalizedConflict) {
+        throw new Error("Ya existe un contratista con una razón social equivalente. Revise tildes, mayúsculas o espacios.");
+    }
+}
+
 export async function createContratistaAction(formData: FormData) {
     await requireRole("ADMIN");
 
@@ -21,6 +49,7 @@ export async function createContratistaAction(formData: FormData) {
 
     try {
         const input = parseContratistaInput(formData);
+        await ensureContratistaNormalizedNameUniqueness(input.razonSocial);
         const contratista = await prisma.contratista.create({
             data: input,
             select: { id: true },
@@ -39,6 +68,7 @@ export async function updateContratistaAction(id: number, formData: FormData) {
 
     try {
         const input = parseContratistaInput(formData);
+        await ensureContratistaNormalizedNameUniqueness(input.razonSocial, id);
 
         await prisma.contratista.update({
             where: { id },

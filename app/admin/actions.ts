@@ -44,6 +44,34 @@ async function getContratistaForVehicle(contratistaId: number) {
     return contratista;
 }
 
+async function findExistingVehicleIdByNormalizedPlate(licensePlate: string, excludeId?: number) {
+    if (!licensePlate) {
+        return null;
+    }
+
+    const exclusionSql = typeof excludeId === "number"
+        ? Prisma.sql`AND id <> ${excludeId}`
+        : Prisma.empty;
+    const rows = await prisma.$queryRaw<Array<{ id: number }>>`
+        SELECT id
+        FROM vehicles
+        WHERE UPPER(REGEXP_REPLACE(license_plate, '[^A-Za-z0-9]', '', 'g')) = ${licensePlate}
+        ${exclusionSql}
+        ORDER BY id ASC
+        LIMIT 1
+    `;
+
+    return rows[0]?.id ?? null;
+}
+
+async function ensureVehicleNormalizedPlateUniqueness(licensePlate: string, excludeId?: number) {
+    const existingVehicleId = await findExistingVehicleIdByNormalizedPlate(licensePlate, excludeId);
+
+    if (existingVehicleId) {
+        throw new Error("Ya existe un vehículo con esa patente.");
+    }
+}
+
 async function ensureVehicleAssignmentContractorConsistency(vehicleId: number, targetContratistaId: number) {
     const mismatchedAssignments = await prisma.vehiculoChofer.count({
         where: {
@@ -171,6 +199,7 @@ export async function createVehicleAction(formData: FormData) {
     try {
         const input = parseVehicleInput(formData);
         const contratista = await getContratistaForVehicle(input.contratistaId);
+        await ensureVehicleNormalizedPlateUniqueness(input.licensePlate);
         const systemIdentity = buildSystemVehicleIdentity(input.licensePlate);
         const vehicle = await prisma.vehicle.create({
             data: {
@@ -200,6 +229,7 @@ export async function updateVehicleAction(id: number, formData: FormData) {
     try {
         const input = parseVehicleInput(formData);
         const contratista = await getContratistaForVehicle(input.contratistaId);
+        await ensureVehicleNormalizedPlateUniqueness(input.licensePlate, id);
         const existingVehicle = await prisma.vehicle.findUnique({
             where: { id },
             select: {

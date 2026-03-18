@@ -50,13 +50,13 @@ export default async function ContratistasPage({ searchParams }: ContratistasPag
                             Contratistas
                         </h1>
                         <p className="mt-3 text-sm leading-6 text-slate-600 lg:text-base">
-                            Ingrese y mantenga la información de empresas contratistas para relacionarlas con vehículos, choferes y reportes.
+                            Gestión manual complementaria para casos puntuales: cree o corrija contratistas sin reemplazar la importación autónoma por Excel.
                         </p>
                     </div>
 
                     <div className="flex flex-wrap gap-3">
                         <Link className="button-primary" href="/admin/contratistas/nuevo">
-                            Ingresar contratista
+                            Nuevo contratista
                         </Link>
                         <a className="button-secondary" href="/admin/contratistas/export?format=xlsx">
                             Exportar Excel
@@ -73,6 +73,7 @@ export default async function ContratistasPage({ searchParams }: ContratistasPag
                 <div className="border-t border-slate-200/70 bg-slate-50/60 px-6 py-4 lg:px-8">
                     <div className="flex flex-wrap gap-2">
                         <span className="topbar-chip">Total {contratistas.length}</span>
+                        <span className="topbar-chip">Complemento manual del Excel</span>
                         <span className="topbar-chip">Con email {withEmailCount}</span>
                         <span className="topbar-chip">Con contacto {withContactCount}</span>
                         <span className="topbar-chip">Con teléfono {withPhoneCount}</span>

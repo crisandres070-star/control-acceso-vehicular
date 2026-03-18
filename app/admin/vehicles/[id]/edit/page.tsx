@@ -20,15 +20,6 @@ type EditableVehicle = {
     contratista: {
         razonSocial: string;
     } | null;
-    vehiculoChoferes: Array<{
-        choferId: number;
-        chofer: {
-            id: number;
-            nombre: string;
-            rut: string;
-            codigoInterno: string | null;
-        };
-    }>;
 };
 
 type ContratistaOption = {
@@ -63,18 +54,6 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                         razonSocial: true,
                     },
                 },
-                vehiculoChoferes: {
-                    include: {
-                        chofer: {
-                            select: {
-                                id: true,
-                                nombre: true,
-                                rut: true,
-                                codigoInterno: true,
-                            },
-                        },
-                    },
-                },
             },
         }),
         prisma.contratista.findMany({
@@ -101,9 +80,6 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
         ? "border-accent-100 bg-accent-50/70 text-accent-800"
         : "border-amber-200 bg-amber-50 text-amber-800";
     const contratistaLabel = vehicle.contratista?.razonSocial ?? "Sin contratista asociado";
-    const authorizedChoferes = [...vehicle.vehiculoChoferes]
-        .map((assignment) => assignment.chofer)
-        .sort((left, right) => left.nombre.localeCompare(right.nombre, "es"));
 
     return (
         <div className="space-y-6">
@@ -118,16 +94,13 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                                 Actualizar vehículo {vehicle.licensePlate}
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                                Revise la ficha, confirme la empresa responsable y deje el vehículo coherente con el flujo manual de contratistas, choferes, asignaciones y control de acceso.
+                                Revise la ficha, confirme la empresa responsable y deje el vehículo coherente con el flujo de portería, historial y dashboard.
                             </p>
                         </div>
 
                         <div className="flex flex-wrap gap-3">
                             <Link className="button-secondary" href="/admin/vehiculos">
                                 Volver al listado
-                            </Link>
-                            <Link className="button-primary" href={`/admin/asignaciones?vehicleId=${vehicle.id}#asignaciones`}>
-                                Gestionar asignaciones
                             </Link>
                         </div>
                     </div>
@@ -144,7 +117,7 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                         <p className="mt-3 text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Creado</p>
                         <p className="mt-2 font-semibold text-slate-700">{formatDateTime(vehicle.createdAt)}</p>
                         <p className="mt-2 text-sm leading-6 text-slate-500">
-                            Registro operativo listo para control, autorizaciones y seguimiento administrativo.
+                            Registro operativo listo para control, historial y seguimiento administrativo.
                         </p>
                     </div>
 
@@ -172,66 +145,6 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                 </div>
             </section>
 
-            <section className="panel overflow-hidden">
-                <div className="flex flex-col gap-4 border-b border-slate-200/70 bg-slate-50/70 px-6 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8">
-                    <div>
-                        <p className="text-xs font-semibold uppercase tracking-[0.28em] text-accent-700">
-                            Autorización operativa
-                        </p>
-                        <h3 className="mt-3 font-[family:var(--font-heading)] text-2xl font-bold text-slate-950">
-                            Choferes autorizados para este vehículo
-                        </h3>
-                        <p className="mt-2 text-sm text-slate-600">
-                            Un vehículo puede tener varios choferes autorizados. Administre esa relación desde asignaciones sin alterar la ficha base del padrón vehicular.
-                        </p>
-                    </div>
-
-                    <div className="flex flex-wrap gap-3">
-                        <span className="topbar-chip">
-                            {authorizedChoferes.length === 1 ? "1 chofer autorizado" : `${authorizedChoferes.length} choferes autorizados`}
-                        </span>
-                        <Link className="button-secondary" href={`/admin/asignaciones?vehicleId=${vehicle.id}#asignaciones`}>
-                            Asignar choferes
-                        </Link>
-                    </div>
-                </div>
-
-                {authorizedChoferes.length > 0 ? (
-                    <div className="divide-y divide-slate-100 bg-white">
-                        {authorizedChoferes.map((chofer) => (
-                            <div className="flex flex-col gap-4 px-6 py-5 lg:flex-row lg:items-center lg:justify-between lg:px-8" key={chofer.id}>
-                                <div>
-                                    <p className="text-lg font-semibold text-slate-950">{chofer.nombre}</p>
-                                    <p className="mt-1 text-sm text-slate-600">RUT: {chofer.rut}</p>
-                                    {chofer.codigoInterno ? (
-                                        <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
-                                            Dato interno opcional: {chofer.codigoInterno}
-                                        </p>
-                                    ) : null}
-                                </div>
-
-                                <div className="flex flex-wrap gap-3">
-                                    <Link className="button-secondary" href={`/admin/choferes/${chofer.id}/editar`}>
-                                        Ver ficha del chofer
-                                    </Link>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="px-6 py-8 lg:px-8">
-                        <div className="rounded-[24px] border border-amber-200 bg-amber-50 px-5 py-5 text-sm leading-6 text-amber-800">
-                            Este vehículo aún no tiene choferes autorizados. Asigne uno o más choferes antes de registrar entrada o salida.
-                            <div className="mt-4">
-                                <Link className="button-secondary" href={`/admin/asignaciones?vehicleId=${vehicle.id}#asignaciones`}>
-                                    Ir a asignaciones
-                                </Link>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </section>
-
             <VehicleForm
                 action={updateVehicleAction.bind(null, vehicle.id)}
                 cancelHref="/admin/vehiculos"
@@ -245,7 +158,7 @@ export default async function EditVehiclePage({ params, searchParams }: EditVehi
                     company: vehicle.company,
                     accessStatus: vehicle.accessStatus,
                 }}
-                description="Edite la ficha con una estructura clara, etiquetas más legibles y una distribución coherente con el panel administrativo principal."
+                description="Edite la ficha con una estructura clara para mantener patente, contratista y estado de acceso listos para operación."
                 errorMessage={error}
                 heading="Ficha del vehículo"
                 id="edit-vehicle-form"

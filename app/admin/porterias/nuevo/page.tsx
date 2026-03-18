@@ -26,7 +26,7 @@ export default function NuevaPorteriaPage({ searchParams }: NuevaPorteriaPagePro
                                 Crear portería
                             </h2>
                             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600 lg:text-base">
-                                Registre un nuevo punto de control sin alterar los módulos operativos ya existentes del sistema.
+                                Registre un nuevo punto de control sin alterar los módulos operativos ya existentes del sistema. Use los nombres reales de operación cuando corresponda.
                             </p>
                         </div>
 
