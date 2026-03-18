@@ -15,6 +15,7 @@ type GuardOperationalShellProps = {
     porterias: PorteriaOption[];
     defaultPorteriaId?: number | null;
     legacyHref?: string | null;
+    loadErrorMessage?: string | null;
 };
 
 export function GuardOperationalShell({
@@ -23,6 +24,7 @@ export function GuardOperationalShell({
     porterias,
     defaultPorteriaId = null,
     legacyHref = null,
+    loadErrorMessage = null,
 }: GuardOperationalShellProps) {
     return (
         <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,rgba(124,58,237,0.12),transparent_24%),radial-gradient(circle_at_top_right,rgba(59,130,246,0.08),transparent_20%),linear-gradient(180deg,#f4f6fa_0%,#edf2f7_100%)]">
@@ -68,6 +70,12 @@ export function GuardOperationalShell({
                     </div>
 
                     <div className="p-6 lg:p-8 xl:p-10">
+                        {loadErrorMessage ? (
+                            <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                                {loadErrorMessage}
+                            </div>
+                        ) : null}
+
                         <AccessControlV2
                             contextLabel={username}
                             defaultPorteriaId={defaultPorteriaId}

@@ -76,78 +76,100 @@ type VehicleLookup = {
     }>;
 };
 
+type AssociatedRecord = {
+    id: number;
+    nombre: string;
+    rut: string;
+};
+
 export async function POST(request: Request) {
-    const session = await getSession();
+    try {
+        const session = await getSession();
 
-    if (!session || (session.role !== "ADMIN" && session.role !== "USER")) {
-        return NextResponse.json({ error: "No autorizado." }, { status: 401 });
-    }
-
-    const body = (await request.json().catch(() => null)) as
-        | {
-            licensePlate?: string;
+        if (!session || (session.role !== "ADMIN" && session.role !== "USER")) {
+            return NextResponse.json({ error: "No autorizado." }, { status: 401 });
         }
-        | null;
-    const licensePlate = normalizeLicensePlate(body?.licensePlate ?? "");
 
-    if (!licensePlate) {
-        return NextResponse.json(
-            { error: "La patente es obligatoria." },
-            { status: 400 },
-        );
-    }
+        const body = (await request.json().catch(() => null)) as
+            | {
+                licensePlate?: string;
+            }
+            | null;
+        const licensePlate = normalizeLicensePlate(body?.licensePlate ?? "");
 
-    const vehicleRecord = await loadVehicleForCheckAccess(licensePlate);
-    const vehicle = vehicleRecord as VehicleLookup | null;
-    const operator = await resolveOperatorContext(prisma, session);
+        if (!licensePlate) {
+            return NextResponse.json(
+                { error: "La patente es obligatoria." },
+                { status: 400 },
+            );
+        }
 
-    const result = vehicle?.accessStatus === "YES" ? "YES" : "NO";
-    const vehicleDetails = vehicle
-        ? {
-            name: vehicle.name,
-            licensePlate: vehicle.licensePlate,
-            codigoInterno: vehicle.codigoInterno,
-            rut: vehicle.rut,
-            vehicleType: vehicle.vehicleType,
-            brand: vehicle.brand,
-            company: vehicle.company,
-            choferes: vehicle.vehiculoChoferes
+        const vehicleRecord = await loadVehicleForCheckAccess(licensePlate);
+        const vehicle = vehicleRecord as VehicleLookup | null;
+        const operator = await resolveOperatorContext(prisma, session);
+        const associatedRecords: AssociatedRecord[] = vehicle
+            ? vehicle.vehiculoChoferes
                 .filter((assignment) => vehicle.contratistaId !== null && assignment.chofer.contratistaId === vehicle.contratistaId)
                 .map((assignment) => ({
                     id: assignment.chofer.id,
                     nombre: assignment.chofer.nombre,
                     rut: assignment.chofer.rut,
-                })),
-        }
-        : {
-            name: "Unknown vehicle",
+                }))
+            : [];
+
+        const result = vehicle?.accessStatus === "YES" ? "YES" : "NO";
+        const vehicleDetails = vehicle
+            ? {
+                name: vehicle.name,
+                licensePlate: vehicle.licensePlate,
+                codigoInterno: vehicle.codigoInterno,
+                rut: vehicle.rut,
+                vehicleType: vehicle.vehicleType,
+                brand: vehicle.brand,
+                company: vehicle.company,
+                associatedRecords,
+                choferes: associatedRecords,
+            }
+            : {
+                name: "Unknown vehicle",
+                licensePlate,
+                codigoInterno: "Not registered",
+                rut: "Not registered",
+                vehicleType: "Not registered",
+                brand: "Not registered",
+                company: "Not registered",
+                associatedRecords: [],
+                choferes: [],
+            };
+
+        const accessLogData = {
             licensePlate,
-            codigoInterno: "Not registered",
-            rut: "Not registered",
-            vehicleType: "Not registered",
-            brand: "Not registered",
-            company: "Not registered",
-            choferes: [],
+            codigoInterno: vehicle?.codigoInterno ?? null,
+            name: vehicleDetails.name,
+            result,
+            operatorUserId: operator.operatorId,
+            operatorUsername: operator.operatorUsername,
+            operatorRole: operator.operatorRole,
+            operatorPorteriaNombre: operator.operatorPorteriaNombre,
         };
 
-    const accessLogData = {
-        licensePlate,
-        codigoInterno: vehicle?.codigoInterno ?? null,
-        name: vehicleDetails.name,
-        result,
-        operatorUserId: operator.operatorId,
-        operatorUsername: operator.operatorUsername,
-        operatorRole: operator.operatorRole,
-        operatorPorteriaNombre: operator.operatorPorteriaNombre,
-    };
+        await prisma.accessLog.create({
+            data: accessLogData,
+        });
 
-    await prisma.accessLog.create({
-        data: accessLogData,
-    });
+        return NextResponse.json({
+            isRegistered: Boolean(vehicle),
+            result,
+            vehicle: vehicleDetails,
+        });
+    } catch (error) {
+        console.error("[check-access] Error inesperado", error);
 
-    return NextResponse.json({
-        isRegistered: Boolean(vehicle),
-        result,
-        vehicle: vehicleDetails,
-    });
+        return NextResponse.json(
+            {
+                error: "No fue posible validar la patente en este momento. Intente nuevamente.",
+            },
+            { status: 500 },
+        );
+    }
 }

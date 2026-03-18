@@ -13,21 +13,30 @@ type PorteriaOption = {
 export default async function GuardPage() {
     const session = await requireRole("USER");
     const roleLabel = session.role === "ADMIN" ? "Administrador" : "Portería";
-    const porteriaRecords = await prisma.porteria.findMany({
-        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-        select: {
-            id: true,
-            nombre: true,
-            telefono: true,
-            orden: true,
-        },
-    });
-    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
+    let porterias: PorteriaOption[] = [];
+    let loadErrorMessage: string | null = null;
+
+    try {
+        const porteriaRecords = await prisma.porteria.findMany({
+            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+            select: {
+                id: true,
+                nombre: true,
+                telefono: true,
+                orden: true,
+            },
+        });
+        porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
+    } catch (error) {
+        console.error("[guard/page] No fue posible cargar porterías", error);
+        loadErrorMessage = "No fue posible cargar las porterías en este momento. Intente nuevamente.";
+    }
 
     return (
         <GuardOperationalShell
             defaultPorteriaId={session.porteriaId ?? null}
             legacyHref={null}
+            loadErrorMessage={loadErrorMessage}
             porterias={porterias}
             roleLabel={roleLabel}
             username={session.username}

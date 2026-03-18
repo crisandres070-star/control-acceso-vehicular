@@ -14,19 +14,33 @@ type PorteriaOption = {
 
 export default async function AdminControlAccesoV2Page() {
     const session = await requireRole("ADMIN");
-    const porteriaRecords = await prisma.porteria.findMany({
-        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-        select: {
-            id: true,
-            nombre: true,
-            telefono: true,
-            orden: true,
-        },
-    });
-    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
+    let porterias: PorteriaOption[] = [];
+    let loadErrorMessage: string | null = null;
+
+    try {
+        const porteriaRecords = await prisma.porteria.findMany({
+            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+            select: {
+                id: true,
+                nombre: true,
+                telefono: true,
+                orden: true,
+            },
+        });
+        porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
+    } catch (error) {
+        console.error("[admin/control-acceso-v2] No fue posible cargar porterías", error);
+        loadErrorMessage = "No fue posible cargar las porterías en este momento. Intente nuevamente.";
+    }
 
     return (
         <div className="space-y-6">
+            {loadErrorMessage ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loadErrorMessage}
+                </div>
+            ) : null}
+
             <section className="panel p-6 lg:p-8">
                 <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                     <div>

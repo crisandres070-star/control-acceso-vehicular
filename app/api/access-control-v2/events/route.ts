@@ -16,6 +16,13 @@ import { prisma } from "@/lib/prisma";
 type TipoEventoInput = "ENTRADA" | "SALIDA";
 const DEBUG_EVENT_REGISTRATION = process.env.DEBUG_EVENT_REGISTRATION === "true";
 
+class OperationalValidationError extends Error {
+    constructor(message: string) {
+        super(message);
+        this.name = "OperationalValidationError";
+    }
+}
+
 function debugEventRegistration(message: string, data?: unknown) {
     if (!DEBUG_EVENT_REGISTRATION) {
         return;
@@ -95,15 +102,15 @@ export async function POST(request: Request) {
             });
 
             if (!vehicle) {
-                throw new Error("El vehículo seleccionado ya no existe.");
+                throw new OperationalValidationError("El vehículo seleccionado ya no existe.");
             }
 
             if (!vehicle.contratistaId) {
-                throw new Error("El vehículo no tiene contratista asociado. Actualícelo en administración antes de registrar eventos.");
+                throw new OperationalValidationError("El vehículo no tiene contratista asociado. Actualícelo en administración antes de registrar eventos.");
             }
 
             if (vehicle.accessStatus !== "YES") {
-                throw new Error("El vehículo está bloqueado para acceso. Revise su estado en administración antes de registrar un movimiento.");
+                throw new OperationalValidationError("El vehículo está bloqueado para acceso. Revise su estado en administración antes de registrar un movimiento.");
             }
 
             const porteria = await tx.porteria.findUnique({
@@ -116,7 +123,7 @@ export async function POST(request: Request) {
             });
 
             if (!porteria) {
-                throw new Error("La portería seleccionada no existe.");
+                throw new OperationalValidationError("La portería seleccionada no existe.");
             }
 
             const porteriaNombre = getOperationalPorteriaName(porteria);
@@ -129,7 +136,7 @@ export async function POST(request: Request) {
             );
 
             if (hasDuplicate) {
-                throw new Error(`Ya existe un ${tipoEvento === "ENTRADA" ? "ingreso" : "salida"} reciente en ${porteriaNombre}. Espere un momento antes de repetir el registro.`);
+                throw new OperationalValidationError(`Ya existe un ${tipoEvento === "ENTRADA" ? "ingreso" : "salida"} reciente en ${porteriaNombre}. Espere un momento antes de repetir el registro.`);
             }
 
             const currentMovementSummary = await getVehicleMovementSummary(tx, vehicle.id);
@@ -227,13 +234,22 @@ export async function POST(request: Request) {
             stateChangedTo: result.movementSummary.stateChangedTo,
         });
     } catch (error) {
+        if (error instanceof OperationalValidationError) {
+            return NextResponse.json(
+                {
+                    error: error.message,
+                },
+                { status: 400 },
+            );
+        }
+
+        console.error("[access-control-v2/events] Error inesperado", error);
+
         return NextResponse.json(
             {
-                error: error instanceof Error
-                    ? error.message
-                    : "No fue posible registrar el evento de acceso.",
+                error: "No fue posible registrar el evento de acceso. Intente nuevamente.",
             },
-            { status: 400 },
+            { status: 500 },
         );
     }
 }

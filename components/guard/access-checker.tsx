@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-type AuthorizedChofer = {
+type AuthorizedRecord = {
     id: number;
     nombre: string;
     rut: string;
@@ -18,7 +18,8 @@ type CheckResponse = {
         vehicleType: string;
         brand: string;
         company: string;
-        choferes: AuthorizedChofer[];
+        associatedRecords?: AuthorizedRecord[];
+        choferes?: AuthorizedRecord[];
     };
 };
 
@@ -31,7 +32,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [licensePlate, setLicensePlate] = useState("");
     const [result, setResult] = useState<CheckResponse | null>(null);
-    const [selectedChoferId, setSelectedChoferId] = useState("");
+    const [selectedRecordId, setSelectedRecordId] = useState("");
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -83,12 +84,21 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                 throw new Error(data.error || "No fue posible verificar el acceso.");
             }
 
-            setResult(data);
-            setSelectedChoferId(data.vehicle.choferes.length === 1 ? String(data.vehicle.choferes[0].id) : "");
+            const associatedRecords = data.vehicle.associatedRecords ?? data.vehicle.choferes ?? [];
+
+            setResult({
+                ...data,
+                vehicle: {
+                    ...data.vehicle,
+                    associatedRecords,
+                    choferes: data.vehicle.choferes,
+                },
+            });
+            setSelectedRecordId(associatedRecords.length === 1 ? String(associatedRecords[0].id) : "");
             setLicensePlate("");
         } catch (requestError) {
             setResult(null);
-            setSelectedChoferId("");
+            setSelectedRecordId("");
             setError(
                 requestError instanceof Error
                     ? requestError.message
@@ -104,9 +114,9 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
 
     const granted = result?.result === "YES";
     const isRegistered = result?.isRegistered ?? false;
-    const authorizedChoferes = result?.vehicle.choferes ?? [];
-    const selectedChofer = authorizedChoferes.find((chofer) => String(chofer.id) === selectedChoferId)
-        ?? (authorizedChoferes.length === 1 ? authorizedChoferes[0] : null);
+    const associatedRecords = result?.vehicle.associatedRecords ?? result?.vehicle.choferes ?? [];
+    const selectedRecord = associatedRecords.find((record) => String(record.id) === selectedRecordId)
+        ?? (associatedRecords.length === 1 ? associatedRecords[0] : null);
     const vehicle = result
         ? {
             licensePlate: formatVehicleValue(result.vehicle.licensePlate),
@@ -124,7 +134,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
             bodyClass: "text-slate-500",
             eyebrow: "Estado inicial",
             title: "LISTO PARA VALIDAR",
-            description: "Ingrese una patente para obtener el estado del vehículo y confirmar el chofer autorizado antes de autorizar el acceso.",
+            description: "Ingrese una patente para obtener el estado del vehículo y confirmar la validación antes de autorizar el acceso.",
         }
         : !granted
             ? {
@@ -133,30 +143,30 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                 titleClass: "text-white",
                 bodyClass: "text-white/85",
                 eyebrow: isRegistered ? "Acceso restringido" : "Patente no registrada",
-                title: isRegistered ? "ACCESO DENEGADO" : "VEHÍCULO NO REGISTRADO",
+                title: isRegistered ? "ACCESO DENEGADO" : "VEHÍCULO NO ENCONTRADO",
                 description: isRegistered
                     ? "El vehículo está bloqueado para acceso y no debe continuar al registro operativo. Revise su estado en administración."
                     : "La patente no existe en el padrón actual. No continúe hasta validar o registrar el vehículo en administración.",
             }
-            : authorizedChoferes.length === 0
+            : associatedRecords.length === 0
                 ? {
                     containerClass: "bg-amber-400",
                     eyebrowClass: "text-slate-900/75",
                     titleClass: "text-slate-950",
                     bodyClass: "text-slate-900/80",
                     eyebrow: "Validación incompleta",
-                    title: "SIN CHOFER AUTORIZADO",
-                    description: "La patente está habilitada en padrón, pero no existe un chofer asignado para cerrar la validación operativa.",
+                    title: "VALIDACIÓN PENDIENTE",
+                    description: "La patente está habilitada en padrón, pero no hay un registro asociado para cerrar la validación operativa.",
                 }
-                : !selectedChofer
+                : !selectedRecord
                     ? {
                         containerClass: "bg-amber-400",
                         eyebrowClass: "text-slate-900/75",
                         titleClass: "text-slate-950",
                         bodyClass: "text-slate-900/80",
                         eyebrow: "Validación en curso",
-                        title: "SELECCIONE CHOFER",
-                        description: "La patente está habilitada, pero el acceso no debe considerarse aprobado hasta confirmar qué chofer autorizado está operando el vehículo.",
+                        title: "SELECCIONE REGISTRO",
+                        description: "La patente está habilitada, pero el acceso no debe considerarse aprobado hasta confirmar el registro asociado a esta validación.",
                     }
                     : {
                         containerClass: "bg-green-500",
@@ -164,8 +174,8 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                         titleClass: "text-white",
                         bodyClass: "text-white/85",
                         eyebrow: "Validación completa",
-                        title: "CHOFER CONFIRMADO",
-                        description: "La patente fue validada y el chofer autorizado ya está confirmado para este control operativo.",
+                        title: "VEHÍCULO CONFIRMADO",
+                        description: "La patente fue validada y el vehículo quedó confirmado para este control operativo.",
                     };
 
     return (
@@ -275,7 +285,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                     <div className="rounded-[32px] border border-slate-200/80 bg-slate-100 p-6 shadow-sm">
                         <div className="rounded-[28px] bg-white p-5 shadow-sm">
                             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-slate-500">
-                                Información del vehículo y chofer
+                                Datos del vehículo
                             </p>
 
                             {vehicle ? (
@@ -307,59 +317,59 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                                         <div className="rounded-[22px] border border-slate-200/80 bg-slate-50 px-4 py-4">
                                             <div className="flex items-center justify-between gap-3">
                                                 <div>
-                                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Chofer autorizado</p>
+                                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Registro asociado</p>
                                                     <p className="mt-2 text-sm text-slate-600">
-                                                        {authorizedChoferes.length === 1
-                                                            ? "Se asignó automáticamente el único chofer autorizado para este vehículo."
-                                                            : authorizedChoferes.length > 1
-                                                                ? "Seleccione el chofer autorizado que corresponde a este acceso."
-                                                                : "No hay chofer autorizado disponible para esta patente."}
+                                                        {associatedRecords.length === 1
+                                                            ? "Se seleccionó automáticamente el único registro asociado para este vehículo."
+                                                            : associatedRecords.length > 1
+                                                                ? "Seleccione el registro asociado que corresponde a este acceso."
+                                                                : "No hay registro asociado disponible para esta patente."}
                                                     </p>
                                                 </div>
 
                                                 <span className="inline-flex rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-slate-600">
-                                                    {authorizedChoferes.length === 1
-                                                        ? "1 chofer"
-                                                        : `${authorizedChoferes.length} choferes`}
+                                                    {associatedRecords.length === 1
+                                                        ? "1 registro"
+                                                        : `${associatedRecords.length} registros`}
                                                 </span>
                                             </div>
 
-                                            {authorizedChoferes.length > 1 ? (
+                                            {associatedRecords.length > 1 ? (
                                                 <div className="mt-4 space-y-2">
-                                                    <label className="field-label" htmlFor="legacy-authorized-chofer">
-                                                        Chofer para validar
+                                                    <label className="field-label" htmlFor="legacy-authorized-record">
+                                                        Registro para validar
                                                     </label>
                                                     <select
                                                         className="input-base"
-                                                        id="legacy-authorized-chofer"
-                                                        onChange={(event) => setSelectedChoferId(event.target.value)}
-                                                        value={selectedChoferId}
+                                                        id="legacy-authorized-record"
+                                                        onChange={(event) => setSelectedRecordId(event.target.value)}
+                                                        value={selectedRecordId}
                                                     >
-                                                        <option value="">Seleccione un chofer autorizado</option>
-                                                        {authorizedChoferes.map((chofer) => (
-                                                            <option key={chofer.id} value={chofer.id}>
-                                                                {chofer.nombre} · {chofer.rut}
+                                                        <option value="">Seleccione un registro asociado</option>
+                                                        {associatedRecords.map((record) => (
+                                                            <option key={record.id} value={record.id}>
+                                                                {record.nombre} · {record.rut}
                                                             </option>
                                                         ))}
                                                     </select>
                                                 </div>
                                             ) : null}
 
-                                            {selectedChofer ? (
+                                            {selectedRecord ? (
                                                 <div className="mt-4 rounded-[20px] border border-accent-100 bg-white px-4 py-4 shadow-sm">
                                                     <p className="text-xs font-semibold uppercase tracking-[0.18em] text-accent-700">
-                                                        Chofer seleccionado
+                                                        Registro seleccionado
                                                     </p>
-                                                    <p className="mt-2 text-lg font-semibold text-slate-950">{selectedChofer.nombre}</p>
-                                                    <p className="mt-2 text-sm text-slate-600">RUT: {selectedChofer.rut}</p>
+                                                    <p className="mt-2 text-lg font-semibold text-slate-950">{selectedRecord.nombre}</p>
+                                                    <p className="mt-2 text-sm text-slate-600">RUT: {selectedRecord.rut}</p>
                                                 </div>
-                                            ) : authorizedChoferes.length === 0 ? (
+                                            ) : associatedRecords.length === 0 ? (
                                                 <div className="mt-4 rounded-[20px] border border-amber-200 bg-amber-50 px-4 py-4 text-sm font-medium leading-6 text-amber-800">
-                                                    Este vehículo no tiene choferes autorizados. Debe asignarse al menos un chofer antes de registrar acceso.
+                                                    Este vehículo no tiene registros asociados. Debe existir al menos uno antes de registrar acceso.
                                                 </div>
                                             ) : (
                                                 <div className="mt-4 rounded-[20px] border border-slate-200 bg-white px-4 py-4 text-sm text-slate-600">
-                                                    Seleccione un chofer autorizado para ver su nombre y RUT.
+                                                    Seleccione un registro asociado para ver su nombre y RUT.
                                                 </div>
                                             )}
                                         </div>
@@ -367,7 +377,7 @@ export function AccessChecker({ username, roleLabel }: AccessCheckerProps) {
                                 </div>
                             ) : (
                                 <div className="mt-5 rounded-2xl bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-600">
-                                    Después de consultar una patente aparecerán aquí los datos del vehículo y, cuando exista, el chofer autorizado correspondiente.
+                                    Después de consultar una patente aparecerán aquí los datos del vehículo y, cuando exista, el registro asociado correspondiente.
                                 </div>
                             )}
                         </div>
