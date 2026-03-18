@@ -71,7 +71,7 @@ const timeFormatter = new Intl.DateTimeFormat("es-CL", {
 function getStatusClasses(tipoEvento: "ENTRADA" | "SALIDA") {
     return tipoEvento === "ENTRADA"
         ? "bg-green-50 text-green-700 border-green-200"
-    : "bg-red-50 text-red-700 border-red-200";
+        : "bg-red-50 text-red-700 border-red-200";
 }
 
 export default async function EventosAccesoPage({ searchParams }: EventosAccesoPageProps) {
@@ -86,109 +86,133 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
     const whereInput = buildEventoAccesoWhereInput(filters);
     const todayDateRange = buildTodayDateRange();
 
-    const [
-        eventRecords,
-        contratistaRecords,
-        porteriaRecords,
-        eventosHoy,
-        entradasHoy,
-        salidasHoy,
-        vehiculosEnFaena,
-        vehiculosEnTransito,
-        vehiculosFuera,
-    ] = await Promise.all([
-        prisma.eventoAcceso.findMany({
-            where: whereInput,
-            select: {
-                id: true,
-                fechaHora: true,
-                tipoEvento: true,
-                observacion: true,
-                operadoPorUsername: true,
-                operadoPorRole: true,
-                operadoPorPorteriaNombre: true,
-                vehiculo: {
-                    select: {
-                        licensePlate: true,
-                    },
-                },
-                contratista: {
-                    select: {
-                        razonSocial: true,
-                    },
-                },
-                porteria: {
-                    select: {
-                        nombre: true,
-                        orden: true,
-                    },
-                },
-            },
-            orderBy: {
-                fechaHora: "desc",
-            },
-        }),
-        prisma.contratista.findMany({
-            select: {
-                id: true,
-                razonSocial: true,
-            },
-            orderBy: {
-                razonSocial: "asc",
-            },
-        }),
-        prisma.porteria.findMany({
-            select: {
-                id: true,
-                nombre: true,
-                orden: true,
-            },
-            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-        }),
-        prisma.eventoAcceso.count({
-            where: {
-                fechaHora: todayDateRange,
-            },
-        }),
-        prisma.eventoAcceso.count({
-            where: {
-                fechaHora: todayDateRange,
-                tipoEvento: "ENTRADA",
-            },
-        }),
-        prisma.eventoAcceso.count({
-            where: {
-                fechaHora: todayDateRange,
-                tipoEvento: "SALIDA",
-            },
-        }),
-        prisma.vehicle.count({
-            where: {
-                estadoRecinto: "DENTRO",
-            },
-        }),
-        prisma.vehicle.count({
-            where: {
-                estadoRecinto: "EN_TRANSITO",
-            },
-        }),
-        prisma.vehicle.count({
-            where: {
-                OR: [
-                    {
-                        estadoRecinto: "FUERA",
-                    },
-                    {
-                        estadoRecinto: null,
-                    },
-                ],
-            },
-        }),
-    ]);
+    let eventos: EventoAccesoRow[] = [];
+    let contratistas: ContratistaOption[] = [];
+    let porteriaOptions: PorteriaOption[] = [];
+    let eventosHoy = 0;
+    let entradasHoy = 0;
+    let salidasHoy = 0;
+    let vehiculosEnFaena = 0;
+    let vehiculosEnTransito = 0;
+    let vehiculosFuera = 0;
+    let loadErrorMessage: string | null = null;
 
-    const eventos = eventRecords as unknown as EventoAccesoRow[];
-    const contratistas = contratistaRecords as ContratistaOption[];
-    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
+    try {
+        const [
+            eventRecords,
+            contratistaRecords,
+            porteriaRecords,
+            eventosHoyCount,
+            entradasHoyCount,
+            salidasHoyCount,
+            vehiculosEnFaenaCount,
+            vehiculosEnTransitoCount,
+            vehiculosFueraCount,
+        ] = await Promise.all([
+            prisma.eventoAcceso.findMany({
+                where: whereInput,
+                select: {
+                    id: true,
+                    fechaHora: true,
+                    tipoEvento: true,
+                    observacion: true,
+                    operadoPorUsername: true,
+                    operadoPorRole: true,
+                    operadoPorPorteriaNombre: true,
+                    vehiculo: {
+                        select: {
+                            licensePlate: true,
+                        },
+                    },
+                    contratista: {
+                        select: {
+                            razonSocial: true,
+                        },
+                    },
+                    porteria: {
+                        select: {
+                            nombre: true,
+                            orden: true,
+                        },
+                    },
+                },
+                orderBy: {
+                    fechaHora: "desc",
+                },
+            }),
+            prisma.contratista.findMany({
+                select: {
+                    id: true,
+                    razonSocial: true,
+                },
+                orderBy: {
+                    razonSocial: "asc",
+                },
+            }),
+            prisma.porteria.findMany({
+                select: {
+                    id: true,
+                    nombre: true,
+                    orden: true,
+                },
+                orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+            }),
+            prisma.eventoAcceso.count({
+                where: {
+                    fechaHora: todayDateRange,
+                },
+            }),
+            prisma.eventoAcceso.count({
+                where: {
+                    fechaHora: todayDateRange,
+                    tipoEvento: "ENTRADA",
+                },
+            }),
+            prisma.eventoAcceso.count({
+                where: {
+                    fechaHora: todayDateRange,
+                    tipoEvento: "SALIDA",
+                },
+            }),
+            prisma.vehicle.count({
+                where: {
+                    estadoRecinto: "DENTRO",
+                },
+            }),
+            prisma.vehicle.count({
+                where: {
+                    estadoRecinto: "EN_TRANSITO",
+                },
+            }),
+            prisma.vehicle.count({
+                where: {
+                    OR: [
+                        {
+                            estadoRecinto: "FUERA",
+                        },
+                        {
+                            estadoRecinto: null,
+                        },
+                    ],
+                },
+            }),
+        ]);
+
+        eventos = eventRecords as unknown as EventoAccesoRow[];
+        contratistas = contratistaRecords as ContratistaOption[];
+        porteriaOptions = porteriaRecords as PorteriaOption[];
+        eventosHoy = eventosHoyCount;
+        entradasHoy = entradasHoyCount;
+        salidasHoy = salidasHoyCount;
+        vehiculosEnFaena = vehiculosEnFaenaCount;
+        vehiculosEnTransito = vehiculosEnTransitoCount;
+        vehiculosFuera = vehiculosFueraCount;
+    } catch (error) {
+        console.error("[admin/eventos-acceso] No fue posible cargar datos iniciales", error);
+        loadErrorMessage = "No fue posible cargar el reporte en este momento. Puede continuar operando desde Control de acceso.";
+    }
+
+    const porterias = mapOperationalPorterias(porteriaOptions);
     const hasFilters = Boolean(
         filters.plate
         || filters.contratistaId
@@ -209,6 +233,12 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
 
     return (
         <div className="space-y-6">
+            {loadErrorMessage ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loadErrorMessage}
+                </div>
+            ) : null}
+
             <section className="panel overflow-hidden">
                 <div className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-8">
                     <div className="max-w-3xl">

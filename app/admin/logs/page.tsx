@@ -86,65 +86,87 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
 
     const eventWhereInput = Object.keys(eventWhere).length > 0 ? eventWhere : undefined;
 
-    const [eventRecords, logRecords, totalMovements, entradasCount, salidasCount, totalChecks, grantedChecks, deniedChecks] = await Promise.all([
-        prisma.eventoAcceso.findMany({
-            where: eventWhereInput,
-            orderBy: { fechaHora: "desc" },
-            select: {
-                id: true,
-                fechaHora: true,
-                tipoEvento: true,
-                operadoPorUsername: true,
-                operadoPorRole: true,
-                operadoPorPorteriaNombre: true,
-                vehiculo: {
-                    select: {
-                        licensePlate: true,
-                        codigoInterno: true,
-                        estadoRecinto: true,
+    let movimientos: EventoAccesoHistoryRow[] = [];
+    let logs: AccessLogRow[] = [];
+    let totalMovements = 0;
+    let entradasCount = 0;
+    let salidasCount = 0;
+    let totalChecks = 0;
+    let grantedChecks = 0;
+    let deniedChecks = 0;
+    let loadErrorMessage: string | null = null;
+
+    try {
+        const [eventRecords, logRecords, totalMovementsCount, entradasCountValue, salidasCountValue, totalChecksCount, grantedChecksCount, deniedChecksCount] = await Promise.all([
+            prisma.eventoAcceso.findMany({
+                where: eventWhereInput,
+                orderBy: { fechaHora: "desc" },
+                select: {
+                    id: true,
+                    fechaHora: true,
+                    tipoEvento: true,
+                    operadoPorUsername: true,
+                    operadoPorRole: true,
+                    operadoPorPorteriaNombre: true,
+                    vehiculo: {
+                        select: {
+                            licensePlate: true,
+                            codigoInterno: true,
+                            estadoRecinto: true,
+                        },
+                    },
+                    contratista: {
+                        select: {
+                            razonSocial: true,
+                        },
+                    },
+                    chofer: {
+                        select: {
+                            nombre: true,
+                            rut: true,
+                        },
+                    },
+                    porteria: {
+                        select: {
+                            nombre: true,
+                        },
                     },
                 },
-                contratista: {
-                    select: {
-                        razonSocial: true,
-                    },
+            }),
+            prisma.accessLog.findMany({
+                where: whereInput,
+                orderBy: { createdAt: "desc" },
+                select: {
+                    id: true,
+                    licensePlate: true,
+                    codigoInterno: true,
+                    result: true,
+                    operatorUsername: true,
+                    operatorRole: true,
+                    operatorPorteriaNombre: true,
+                    createdAt: true,
                 },
-                chofer: {
-                    select: {
-                        nombre: true,
-                        rut: true,
-                    },
-                },
-                porteria: {
-                    select: {
-                        nombre: true,
-                    },
-                },
-            },
-        }),
-        prisma.accessLog.findMany({
-            where: whereInput,
-            orderBy: { createdAt: "desc" },
-            select: {
-                id: true,
-                licensePlate: true,
-                codigoInterno: true,
-                result: true,
-                operatorUsername: true,
-                operatorRole: true,
-                operatorPorteriaNombre: true,
-                createdAt: true,
-            },
-        }),
-        prisma.eventoAcceso.count({ where: eventWhereInput }),
-        prisma.eventoAcceso.count({ where: { ...(eventWhereInput ?? {}), tipoEvento: "ENTRADA" } }),
-        prisma.eventoAcceso.count({ where: { ...(eventWhereInput ?? {}), tipoEvento: "SALIDA" } }),
-        prisma.accessLog.count({ where: whereInput }),
-        prisma.accessLog.count({ where: { ...(whereInput ?? {}), result: "YES" } }),
-        prisma.accessLog.count({ where: { ...(whereInput ?? {}), result: "NO" } }),
-    ]);
-    const movimientos = eventRecords as unknown as EventoAccesoHistoryRow[];
-    const logs = logRecords as unknown as AccessLogRow[];
+            }),
+            prisma.eventoAcceso.count({ where: eventWhereInput }),
+            prisma.eventoAcceso.count({ where: { ...(eventWhereInput ?? {}), tipoEvento: "ENTRADA" } }),
+            prisma.eventoAcceso.count({ where: { ...(eventWhereInput ?? {}), tipoEvento: "SALIDA" } }),
+            prisma.accessLog.count({ where: whereInput }),
+            prisma.accessLog.count({ where: { ...(whereInput ?? {}), result: "YES" } }),
+            prisma.accessLog.count({ where: { ...(whereInput ?? {}), result: "NO" } }),
+        ]);
+
+        movimientos = eventRecords as unknown as EventoAccesoHistoryRow[];
+        logs = logRecords as unknown as AccessLogRow[];
+        totalMovements = totalMovementsCount;
+        entradasCount = entradasCountValue;
+        salidasCount = salidasCountValue;
+        totalChecks = totalChecksCount;
+        grantedChecks = grantedChecksCount;
+        deniedChecks = deniedChecksCount;
+    } catch (error) {
+        console.error("[admin/logs] No fue posible cargar datos iniciales", error);
+        loadErrorMessage = "No fue posible cargar la auditoría en este momento. Intente nuevamente en unos minutos.";
+    }
 
     const exportParams = new URLSearchParams();
 
@@ -211,6 +233,12 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
 
     return (
         <div className="space-y-6">
+            {loadErrorMessage ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loadErrorMessage}
+                </div>
+            ) : null}
+
             <section className="panel p-6 lg:p-8">
                 <div className="flex flex-col gap-6 xl:flex-row xl:items-end xl:justify-between">
                     <div>

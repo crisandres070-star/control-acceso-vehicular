@@ -32,6 +32,10 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                             Código de incidente: <strong style={{ color: "#0f172a" }}>{error.digest ?? "no-disponible"}</strong>
                         </div>
 
+                        <p style={{ marginTop: "14px", marginBottom: 0, color: "#475569", lineHeight: 1.6 }}>
+                            Si el reintento no resulta, continúe por una ruta segura para evitar quedar atrapado en la misma pantalla.
+                        </p>
+
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "10px", marginTop: "18px" }}>
                             <button
                                 onClick={() => reset()}
@@ -45,6 +49,18 @@ export default function GlobalError({ error, reset }: GlobalErrorProps) {
                                 style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px 18px", fontWeight: 700, color: "#0f172a", textDecoration: "none", background: "#fff" }}
                             >
                                 Ir a login
+                            </Link>
+                            <Link
+                                href="/guard/v2"
+                                style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px 18px", fontWeight: 700, color: "#0f172a", textDecoration: "none", background: "#fff" }}
+                            >
+                                Ir a control operativo
+                            </Link>
+                            <Link
+                                href="/admin/control-acceso-v2"
+                                style={{ border: "1px solid #cbd5e1", borderRadius: "10px", padding: "12px 18px", fontWeight: 700, color: "#0f172a", textDecoration: "none", background: "#fff" }}
+                            >
+                                Ir a dashboard
                             </Link>
                         </div>
                     </section>

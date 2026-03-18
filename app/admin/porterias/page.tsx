@@ -23,10 +23,18 @@ type PorteriasPageProps = {
 };
 
 export default async function PorteriasPage({ searchParams }: PorteriasPageProps) {
-    const porteriaRecords = await prisma.porteria.findMany({
-        orderBy: [{ orden: "asc" }, { nombre: "asc" }],
-    });
-    const porterias = mapOperationalPorterias(porteriaRecords as PorteriaRow[]);
+    let porterias: PorteriaRow[] = [];
+    let loadErrorMessage: string | null = null;
+
+    try {
+        const porteriaRecords = await prisma.porteria.findMany({
+            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+        });
+        porterias = mapOperationalPorterias(porteriaRecords as PorteriaRow[]);
+    } catch (error) {
+        console.error("[admin/porterias] No fue posible cargar datos iniciales", error);
+        loadErrorMessage = "No fue posible cargar las porterías en este momento. Intente nuevamente.";
+    }
 
     const success = getQueryStringValue(searchParams.success);
     const error = getQueryStringValue(searchParams.error);
@@ -71,6 +79,12 @@ export default async function PorteriasPage({ searchParams }: PorteriasPageProps
             {success ? (
                 <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm font-medium text-green-700">
                     {decodeURIComponent(success)}
+                </div>
+            ) : null}
+
+            {loadErrorMessage ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loadErrorMessage}
                 </div>
             ) : null}
 

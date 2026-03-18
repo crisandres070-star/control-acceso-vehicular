@@ -27,7 +27,8 @@ export function parseRole(value: string): AppRole | null {
 }
 
 export function getDashboardPath(role: AppRole) {
-    return role === "ADMIN" ? "/admin" : "/guard";
+    // Admin lands on the operational control route, which handles data-load failures locally.
+    return role === "ADMIN" ? "/admin/control-acceso-v2" : "/guard";
 }
 
 export function isValidCredentials(

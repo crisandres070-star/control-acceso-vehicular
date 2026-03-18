@@ -4,6 +4,7 @@ import { FaenaStats } from "@/components/admin/dashboard/faena-stats";
 import { FaenaVehiclesTable } from "@/components/admin/dashboard/faena-vehicles-table";
 import { requireRole } from "@/lib/auth";
 import {
+    type FaenaDashboardData,
     type EstadoFaenaFilter,
     getFaenaDashboardData,
 } from "@/lib/dashboard/faena";
@@ -42,14 +43,45 @@ export default async function DashboardFaenaPage({ searchParams }: DashboardFaen
     const estado = parseEstadoFilter(getQueryStringValue(searchParams.estado));
     const contratistaId = parseContratistaFilter(getQueryStringValue(searchParams.contratistaId));
 
-    const data = await getFaenaDashboardData({
-        plate,
-        estado,
-        contratistaId,
-    });
+    const fallbackData: FaenaDashboardData = {
+        stats: {
+            totalVehicles: 0,
+            enFaenaVehicles: 0,
+            fueraFaenaVehicles: 0,
+            transitVehicles: 0,
+        },
+        options: {
+            contratistas: [],
+        },
+        rows: {
+            enFaena: [],
+            transit: [],
+            fueraFaena: [],
+        },
+    };
+
+    let data = fallbackData;
+    let loadErrorMessage: string | null = null;
+
+    try {
+        data = await getFaenaDashboardData({
+            plate,
+            estado,
+            contratistaId,
+        });
+    } catch (error) {
+        console.error("[admin/dashboard-faena] No fue posible cargar datos iniciales", error);
+        loadErrorMessage = "No fue posible cargar el dashboard en este momento. Puede continuar operando desde Control de acceso.";
+    }
 
     return (
         <div className="space-y-6">
+            {loadErrorMessage ? (
+                <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+                    {loadErrorMessage}
+                </div>
+            ) : null}
+
             <section className="panel overflow-hidden">
                 <div className="flex flex-col gap-6 px-6 py-6 lg:flex-row lg:items-end lg:justify-between lg:px-8 lg:py-8">
                     <div className="max-w-3xl">
