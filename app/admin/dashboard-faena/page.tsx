@@ -19,7 +19,7 @@ type DashboardFaenaPageProps = {
 };
 
 function parseEstadoFilter(value: string | undefined): EstadoFaenaFilter {
-    if (value === "EN_FAENA" || value === "FUERA_DE_FAENA" || value === "EN_TRANSITO") {
+    if (value === "EN_FAENA" || value === "FUERA_DE_FAENA") {
         return value;
     }
 
@@ -48,14 +48,12 @@ export default async function DashboardFaenaPage({ searchParams }: DashboardFaen
             totalVehicles: 0,
             enFaenaVehicles: 0,
             fueraFaenaVehicles: 0,
-            transitVehicles: 0,
         },
         options: {
             contratistas: [],
         },
         rows: {
             enFaena: [],
-            transit: [],
             fueraFaena: [],
         },
     };
@@ -92,8 +90,8 @@ export default async function DashboardFaenaPage({ searchParams }: DashboardFaen
                             Estado actual del parque vehicular
                         </h1>
                         <p className="mt-3 text-sm leading-6 text-slate-600 lg:text-base">
-                            Visualice en tiempo real quién está en faena, fuera de faena o en tránsito según el ciclo
-                            actual de 3 entradas y 3 salidas registradas por portería.
+                            Visualice en tiempo real la faena actual del vehículo según su último movimiento operativo:
+                            ENTRADA lo deja en la faena seleccionada y SALIDA lo deja fuera de faena.
                         </p>
                     </div>
 
@@ -153,7 +151,6 @@ export default async function DashboardFaenaPage({ searchParams }: DashboardFaen
                         <select className="input-base" defaultValue={estado} id="dashboard-faena-state" name="estado">
                             <option value="TODOS">Todos</option>
                             <option value="EN_FAENA">En faena</option>
-                            <option value="EN_TRANSITO">En tránsito</option>
                             <option value="FUERA_DE_FAENA">Fuera de faena</option>
                         </select>
                     </div>
@@ -171,31 +168,21 @@ export default async function DashboardFaenaPage({ searchParams }: DashboardFaen
             <FaenaStats
                 enFaenaVehicles={data.stats.enFaenaVehicles}
                 fueraFaenaVehicles={data.stats.fueraFaenaVehicles}
-                transitVehicles={data.stats.transitVehicles}
                 totalVehicles={data.stats.totalVehicles}
             />
 
-            {estado !== "FUERA_DE_FAENA" && estado !== "EN_TRANSITO" ? (
+            {estado !== "FUERA_DE_FAENA" ? (
                 <FaenaVehiclesTable
-                    description={`Vehículos con 3 entradas registradas en su ciclo actual. Total listado: ${data.rows.enFaena.length}.`}
+                    description={`Vehículos cuya última operación fue ENTRADA en una faena. Total listado: ${data.rows.enFaena.length}.`}
                     rows={data.rows.enFaena}
                     state="EN_FAENA"
                     title="Vehículos en faena"
                 />
             ) : null}
 
-            {estado !== "EN_FAENA" && estado !== "FUERA_DE_FAENA" ? (
+            {estado !== "EN_FAENA" ? (
                 <FaenaVehiclesTable
-                    description={`Vehículos con un ciclo abierto que aún no completa sus 3 entradas o 3 salidas. Total listado: ${data.rows.transit.length}.`}
-                    rows={data.rows.transit}
-                    state="EN_TRANSITO"
-                    title="Vehículos en tránsito"
-                />
-            ) : null}
-
-            {estado !== "EN_FAENA" && estado !== "EN_TRANSITO" ? (
-                <FaenaVehiclesTable
-                    description={`Vehículos fuera de faena o sin movimientos todavía. Total listado: ${data.rows.fueraFaena.length}.`}
+                    description={`Vehículos cuya última operación fue SALIDA o que no tienen movimientos todavía. Total listado: ${data.rows.fueraFaena.length}.`}
                     rows={data.rows.fueraFaena}
                     state="FUERA_DE_FAENA"
                     title="Vehículos fuera de faena"

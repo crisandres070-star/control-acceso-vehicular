@@ -9,7 +9,6 @@ type SeedUser = {
     password: string;
     role: UserRole;
     porteriaNombre?: string;
-    porteriaOrden?: number;
 };
 
 type SeedResult = {
@@ -38,36 +37,32 @@ const seedUsers: SeedUser[] = [
         password: "cala2026",
         role: "USER",
         porteriaNombre: "Cala Cala",
-        porteriaOrden: 1,
     },
     {
         username: "PorteriaSoledad",
         password: "Soledad2026",
         role: "USER",
         porteriaNombre: "Soledad",
-        porteriaOrden: 2,
     },
     {
         username: "PorteriaTana",
         password: "Tana2026",
         role: "USER",
         porteriaNombre: "Tana",
-        porteriaOrden: 3,
     },
     {
         username: "PorteriaNegreiros",
         password: "Negreiros2026",
         role: "USER",
         porteriaNombre: "Negreiros",
-        porteriaOrden: 4,
     },
 ];
 
-async function ensurePorteria(nombre: string, orden?: number) {
+async function ensurePorteria(nombre: string) {
     return prisma.porteria.upsert({
         where: { nombre },
-        update: typeof orden === "number" ? { orden } : {},
-        create: typeof orden === "number" ? { nombre, orden } : { nombre },
+        update: {},
+        create: { nombre },
         select: {
             id: true,
             nombre: true,
@@ -77,7 +72,7 @@ async function ensurePorteria(nombre: string, orden?: number) {
 
 async function ensureUser(account: SeedUser): Promise<SeedResult> {
     const porteria = account.porteriaNombre
-        ? await ensurePorteria(account.porteriaNombre, account.porteriaOrden)
+        ? await ensurePorteria(account.porteriaNombre)
         : null;
 
     if (account.role === "USER" && !porteria) {

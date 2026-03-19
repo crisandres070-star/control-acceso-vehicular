@@ -7,7 +7,6 @@ type PorteriaOption = {
     id: number;
     nombre: string;
     telefono: string | null;
-    orden: number;
 };
 
 export default async function GuardV2Page() {
@@ -18,12 +17,11 @@ export default async function GuardV2Page() {
 
     try {
         const porteriaRecords = await prisma.porteria.findMany({
-            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+            orderBy: { nombre: "asc" },
             select: {
                 id: true,
                 nombre: true,
                 telefono: true,
-                orden: true,
             },
         });
         porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);

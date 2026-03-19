@@ -9,7 +9,6 @@ type PorteriaOption = {
     id: number;
     nombre: string;
     telefono: string | null;
-    orden: number;
 };
 
 export default async function AdminControlAccesoV2Page() {
@@ -19,12 +18,11 @@ export default async function AdminControlAccesoV2Page() {
 
     try {
         const porteriaRecords = await prisma.porteria.findMany({
-            orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+            orderBy: { nombre: "asc" },
             select: {
                 id: true,
                 nombre: true,
                 telefono: true,
-                orden: true,
             },
         });
         porterias = mapOperationalPorterias(porteriaRecords as PorteriaOption[]);
@@ -56,9 +54,6 @@ export default async function AdminControlAccesoV2Page() {
                     </div>
 
                     <div className="flex flex-wrap gap-3">
-                        <Link className="button-secondary" href="/admin/porterias">
-                            Gestionar porterías
-                        </Link>
                         <Link className="button-secondary" href="/admin/eventos-acceso">
                             Ver eventos
                         </Link>

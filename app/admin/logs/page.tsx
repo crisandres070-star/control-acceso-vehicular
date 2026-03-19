@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import Link from "next/link";
 
+import { getOperationalPorteriaName } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import {
     buildCreatedAtFilter,
@@ -31,15 +32,11 @@ type EventoAccesoHistoryRow = {
     vehiculo: {
         licensePlate: string;
         codigoInterno: string;
-        estadoRecinto: "DENTRO" | "FUERA" | null;
+        estadoRecinto: "DENTRO" | "FUERA" | "EN_TRANSITO" | null;
     };
     contratista: {
         razonSocial: string;
     };
-    chofer: {
-        nombre: string;
-        rut: string;
-    } | null;
     porteria: {
         nombre: string;
     };
@@ -118,12 +115,6 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                     contratista: {
                         select: {
                             razonSocial: true,
-                        },
-                    },
-                    chofer: {
-                        select: {
-                            nombre: true,
-                            rut: true,
                         },
                     },
                     porteria: {
@@ -219,16 +210,12 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
             : "bg-sky-50 text-sky-700 border-sky-200";
     }
 
-    function formatEstadoRecinto(value: "DENTRO" | "FUERA" | null) {
+    function formatEstadoRecinto(value: "DENTRO" | "FUERA" | "EN_TRANSITO" | null) {
         if (value === "DENTRO") {
-            return "DENTRO";
+            return "EN FAENA";
         }
 
-        if (value === "FUERA") {
-            return "FUERA";
-        }
-
-        return "Sin estado";
+        return "FUERA DE FAENA";
     }
 
     return (
@@ -358,7 +345,6 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                                 <th className="px-6 py-4">Fecha</th>
                                 <th className="px-6 py-4">Patente</th>
                                 <th className="px-6 py-4">Contratista</th>
-                                <th className="px-6 py-4">Chofer</th>
                                 <th className="px-6 py-4">Portería</th>
                                 <th className="px-6 py-4">Operador</th>
                                 <th className="px-6 py-4">Estado recinto</th>
@@ -374,18 +360,14 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                                         <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">{movimiento.vehiculo.codigoInterno}</p>
                                     </td>
                                     <td className="px-6 py-5 text-slate-700">{movimiento.contratista.razonSocial}</td>
-                                    <td className="px-6 py-5 text-slate-700">
-                                        <p className="font-semibold text-slate-950">{movimiento.chofer?.nombre ?? "Sin chofer"}</p>
-                                        <p className="mt-1 text-xs text-slate-500">{movimiento.chofer?.rut ?? "Sin RUT"}</p>
-                                    </td>
-                                    <td className="px-6 py-5 text-slate-700">{movimiento.porteria.nombre}</td>
+                                    <td className="px-6 py-5 text-slate-700">{getOperationalPorteriaName(movimiento.porteria.nombre)}</td>
                                     <td className="px-6 py-5 text-slate-700">
                                         <p className="font-semibold text-slate-950">{movimiento.operadoPorUsername ?? "No informado"}</p>
                                         <p className="mt-1 text-xs uppercase tracking-[0.16em] text-slate-500">
                                             {movimiento.operadoPorRole === "ADMIN" ? "Administrador" : movimiento.operadoPorRole === "USER" ? "Portería" : "Sin rol"}
                                         </p>
                                         {movimiento.operadoPorPorteriaNombre ? (
-                                            <p className="mt-1 text-xs text-slate-500">Cuenta: {movimiento.operadoPorPorteriaNombre}</p>
+                                            <p className="mt-1 text-xs text-slate-500">Portería operador: {getOperationalPorteriaName(movimiento.operadoPorPorteriaNombre)}</p>
                                         ) : null}
                                     </td>
                                     <td className="px-6 py-5 text-slate-700">{formatEstadoRecinto(movimiento.vehiculo.estadoRecinto)}</td>
@@ -398,7 +380,7 @@ export default async function LogsPage({ searchParams }: LogsPageProps) {
                             ))}
                             {movimientos.length === 0 ? (
                                 <tr>
-                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={8}>
+                                    <td className="px-6 py-10 text-center text-slate-500" colSpan={7}>
                                         No hay movimientos V2 para los filtros seleccionados.
                                     </td>
                                 </tr>

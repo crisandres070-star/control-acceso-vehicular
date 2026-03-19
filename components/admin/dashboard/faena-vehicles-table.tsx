@@ -4,33 +4,25 @@ import { formatDateTime } from "@/lib/utils";
 type FaenaVehiclesTableProps = {
     title: string;
     description: string;
-    state: "EN_FAENA" | "FUERA_DE_FAENA" | "EN_TRANSITO";
+    state: "EN_FAENA" | "FUERA_DE_FAENA";
     rows: FaenaDashboardVehicleRow[];
 };
 
-function getStateClasses(state: "EN_FAENA" | "FUERA_DE_FAENA" | "EN_TRANSITO") {
+function getStateClasses(state: "EN_FAENA" | "FUERA_DE_FAENA") {
     if (state === "EN_FAENA") {
         return "bg-green-100 text-green-700";
-    }
-
-    if (state === "EN_TRANSITO") {
-        return "bg-amber-100 text-amber-700";
     }
 
     return "bg-sky-100 text-sky-700";
 }
 
-function getStateLabel(state: "EN_FAENA" | "FUERA_DE_FAENA" | "EN_TRANSITO") {
+function getStateLabel(state: "EN_FAENA" | "FUERA_DE_FAENA") {
     if (state === "EN_FAENA") {
         return "EN FAENA";
     }
 
     if (state === "FUERA_DE_FAENA") {
         return "FUERA DE FAENA";
-    }
-
-    if (state === "EN_TRANSITO") {
-        return "EN TRÁNSITO";
     }
 
     return state;
@@ -57,7 +49,7 @@ export function FaenaVehiclesTable({ title, description, state, rows }: FaenaVeh
                                 <th className="px-4 py-2">Patente</th>
                                 <th className="px-4 py-2">Contratista</th>
                                 <th className="px-4 py-2">Tipo vehículo</th>
-                                <th className="px-4 py-2">Última portería</th>
+                                <th className="px-4 py-2">Faena actual</th>
                                 <th className="px-4 py-2">Último movimiento</th>
                                 <th className="px-4 py-2">Estado actual</th>
                             </tr>
@@ -69,7 +61,7 @@ export function FaenaVehiclesTable({ title, description, state, rows }: FaenaVeh
                                     <td className="px-4 py-3 text-sm text-slate-700">{row.companyName}</td>
                                     <td className="px-4 py-3 text-sm text-slate-700">{row.vehicleType}</td>
                                     <td className="px-4 py-3 text-sm text-slate-700">
-                                        {row.ultimaPorteriaNombre ?? "Sin registro"}
+                                        {row.faenaActualNombre ?? "Fuera de faena"}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-slate-700">
                                         {row.ultimoMovimientoAt

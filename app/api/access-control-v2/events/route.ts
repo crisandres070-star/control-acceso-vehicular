@@ -118,7 +118,6 @@ export async function POST(request: Request) {
                 select: {
                     id: true,
                     nombre: true,
-                    orden: true,
                 },
             });
 
@@ -154,7 +153,7 @@ export async function POST(request: Request) {
                     operadoPorId: operator.operatorId,
                     operadoPorUsername: operator.operatorUsername,
                     operadoPorRole: operator.operatorRole,
-                    operadoPorPorteriaNombre: operator.operatorPorteriaNombre,
+                    operadoPorPorteriaNombre: porteriaNombre,
                     tipoEvento: tipoEvento as TipoEventoInput,
                     observacion: projectedMovement.observation,
                 },
@@ -169,7 +168,6 @@ export async function POST(request: Request) {
                         select: {
                             id: true,
                             nombre: true,
-                            orden: true,
                         },
                     },
                 },

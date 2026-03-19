@@ -8,10 +8,10 @@ const TEST_LICENSE_PLATE = "TEST001";
 const TEST_CONTRACTOR_RUT = "STAGING-TEST001";
 const shouldResetHistory = process.argv.includes("--reset-history");
 const STAGING_PORTERIA_SEQUENCE = [
-    { nombre: "Cala Cala", orden: 1 },
-    { nombre: "Soledad", orden: 2 },
-    { nombre: "Tana", orden: 3 },
-    { nombre: "Negreiros", orden: 4 },
+    { nombre: "Cala Cala" },
+    { nombre: "Soledad" },
+    { nombre: "Tana" },
+    { nombre: "Negreiros" },
 ] as const;
 
 const DEFAULT_STAGING_OPERATOR_USERNAME =
@@ -112,40 +112,18 @@ async function main() {
     for (const porteriaInput of STAGING_PORTERIA_SEQUENCE) {
         const porteria = await prisma.porteria.upsert({
             where: { nombre: porteriaInput.nombre },
-            update: { orden: porteriaInput.orden },
+            update: {},
             create: {
                 nombre: porteriaInput.nombre,
-                orden: porteriaInput.orden,
             },
             select: {
                 id: true,
                 nombre: true,
-                orden: true,
             },
         });
 
         porterias.push(porteria);
     }
-
-    await prisma.porteria.updateMany({
-        where: {
-            nombre: {
-                in: [
-                    "Portería 1",
-                    "Portería 2",
-                    "Portería 3",
-                    "Portería 4",
-                    "Portería Entrada Minera",
-                    "Control Caseta",
-                    "Portería Salida Operativa",
-                    "Salida Principal",
-                ],
-            },
-        },
-        data: {
-            orden: 0,
-        },
-    });
 
     const stagingOperator = await ensureStagingOperator(porterias[0]?.id ?? null);
 

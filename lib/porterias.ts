@@ -7,7 +7,6 @@ export const OPERATIONAL_PORTERIA_NAMES = [
 
 type PorteriaLike = {
     nombre: string;
-    orden?: number | null;
 };
 
 type CanonicalPorteria = {
@@ -69,7 +68,7 @@ function normalizePorteriaToken(value: string) {
         .trim();
 }
 
-function findCanonicalPorteria(nombre: string, orden?: number | null) {
+function findCanonicalPorteria(nombre: string) {
     const normalizedName = normalizePorteriaToken(nombre);
     const byAlias = CANONICAL_PORTERIAS.find((porteria) => {
         const normalizedDisplayName = normalizePorteriaToken(porteria.displayName);
@@ -80,10 +79,6 @@ function findCanonicalPorteria(nombre: string, orden?: number | null) {
 
     if (byAlias) {
         return byAlias;
-    }
-
-    if (typeof orden === "number") {
-        return CANONICAL_PORTERIAS.find((porteria) => porteria.order === orden) ?? null;
     }
 
     return null;
@@ -100,20 +95,16 @@ export function getOperationalPorteriaName(input: PorteriaLike | string | null |
         return canonical?.displayName ?? input.trim();
     }
 
-    const canonical = findCanonicalPorteria(input.nombre, input.orden);
+    const canonical = findCanonicalPorteria(input.nombre);
 
     return canonical?.displayName ?? input.nombre.trim();
 }
 
 export function getOperationalPorteriaSortOrder(input: PorteriaLike) {
-    const canonical = findCanonicalPorteria(input.nombre, input.orden);
+    const canonical = findCanonicalPorteria(input.nombre);
 
     if (canonical) {
         return canonical.order;
-    }
-
-    if (typeof input.orden === "number" && input.orden > 0) {
-        return input.orden;
     }
 
     return 999;

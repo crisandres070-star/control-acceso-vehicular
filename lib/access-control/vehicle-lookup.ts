@@ -40,7 +40,6 @@ export const VEHICLE_LOOKUP_SELECT = {
                 select: {
                     id: true,
                     nombre: true,
-                    orden: true,
                 },
             },
         },

@@ -13,7 +13,7 @@ const navigationSections = [
                 href: "/admin/dashboard-faena",
                 label: "Dashboard de faena",
                 short: "DF",
-                description: "Vehículos en faena, fuera o en tránsito.",
+                description: "Vehículos en faena o fuera de faena.",
                 matches: ["/admin/dashboard-faena"],
             },
             {
@@ -60,14 +60,6 @@ const navigationSections = [
                 short: "VH",
                 description: "Padrón vehicular y edición de fichas.",
                 matches: ["/admin/vehiculos", "/admin/vehicles"],
-            },
-            {
-                key: "porterias",
-                href: "/admin/porterias",
-                label: "Porterías",
-                short: "PT",
-                description: "Puntos de control y teléfonos.",
-                matches: ["/admin/porterias"],
             },
         ],
     },

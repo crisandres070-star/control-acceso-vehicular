@@ -18,6 +18,7 @@ import {
     validateNextCheckpoint,
     type ValidationResult,
 } from "@/lib/porteria/sequential-access";
+import { getOperationalPorteriaSortOrder } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 
 function debugLog(section: string, message: string, data?: unknown) {
@@ -82,7 +83,6 @@ export async function debugGetVehicleSequenceHistory(licensePlateInput: string) 
                     select: {
                         id: true,
                         nombre: true,
-                        orden: true,
                     },
                 },
                 chofer: {
@@ -100,7 +100,7 @@ export async function debugGetVehicleSequenceHistory(licensePlateInput: string) 
             tipo: event.tipoEvento,
             porteriaId: event.porteriaId,
             porteriaNombre: event.porteria.nombre,
-            porteriaOrden: event.porteria.orden,
+            porteriaOrden: getOperationalPorteriaSortOrder(event.porteria),
             fechaHora: event.fechaHora.toISOString(),
             observacion: event.observacion,
             choferNombre: event.chofer?.nombre ?? null,
@@ -150,7 +150,7 @@ export async function debugValidateSequence(
         const [targetPorteria, lastEvent, nextExpected, validation, sequenceInfo] = await Promise.all([
             prisma.porteria.findUnique({
                 where: { id: porteriaId },
-                select: { id: true, nombre: true, orden: true },
+                select: { id: true, nombre: true },
             }),
             prisma.eventoAcceso.findFirst({
                 where: { vehiculoId: lookup.vehicle.id },
@@ -160,7 +160,7 @@ export async function debugValidateSequence(
                     tipoEvento: true,
                     fechaHora: true,
                     porteria: {
-                        select: { id: true, nombre: true, orden: true },
+                        select: { id: true, nombre: true },
                     },
                 },
             }),
@@ -182,12 +182,17 @@ export async function debugValidateSequence(
                 accessStatus: lookup.vehicle.accessStatus,
                 contratista: lookup.vehicle.contratista?.razonSocial ?? null,
             },
-            porteriaActual: targetPorteria,
+            porteriaActual: targetPorteria
+                ? {
+                    ...targetPorteria,
+                    orden: getOperationalPorteriaSortOrder(targetPorteria),
+                }
+                : null,
             ultimaPorteriaRegistrada: lastEvent
                 ? {
                     id: lastEvent.porteria.id,
                     nombre: lastEvent.porteria.nombre,
-                    orden: lastEvent.porteria.orden,
+                    orden: getOperationalPorteriaSortOrder(lastEvent.porteria),
                     tipoEvento: lastEvent.tipoEvento,
                     fechaHora: lastEvent.fechaHora.toISOString(),
                 }
@@ -264,7 +269,7 @@ export async function debugGetNextExpectedPorteria(
                     tipoEvento: true,
                     fechaHora: true,
                     porteria: {
-                        select: { id: true, nombre: true, orden: true },
+                        select: { id: true, nombre: true },
                     },
                 },
             }),
@@ -278,7 +283,7 @@ export async function debugGetNextExpectedPorteria(
             ultimaPorteriaRegistrada: lastEvent
                 ? {
                     nombre: lastEvent.porteria.nombre,
-                    orden: lastEvent.porteria.orden,
+                    orden: getOperationalPorteriaSortOrder(lastEvent.porteria),
                     tipoEvento: lastEvent.tipoEvento,
                     fechaHora: lastEvent.fechaHora.toISOString(),
                 }

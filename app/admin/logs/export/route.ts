@@ -13,6 +13,7 @@ import {
     parseExportFormat,
     type ExportColumn,
 } from "@/lib/export-utils";
+import { getOperationalPorteriaName } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import { buildCreatedAtFilter, normalizeLicensePlate, parseDateInput } from "@/lib/utils";
 
@@ -48,8 +49,6 @@ type AccessLogSheetRow = {
     numeroInterno: string;
     empresa: string;
     contratista: string;
-    chofer: string;
-    rutChofer: string;
     porteria: string;
     tipoVehiculo: string;
     marca: string;
@@ -68,8 +67,6 @@ const columns = [
     { header: "N° interno", key: "numeroInterno", width: 18, value: (row) => row.numeroInterno },
     { header: "Empresa", key: "empresa", width: 24, value: (row) => row.empresa },
     { header: "Contratista", key: "contratista", width: 28, value: (row) => row.contratista },
-    { header: "Chofer", key: "chofer", width: 24, value: (row) => row.chofer },
-    { header: "RUT chofer", key: "rutChofer", width: 18, value: (row) => row.rutChofer },
     { header: "Portería", key: "porteria", width: 18, value: (row) => row.porteria },
     { header: "Tipo de vehículo", key: "tipoVehiculo", width: 20, value: (row) => row.tipoVehiculo },
     { header: "Marca", key: "marca", width: 18, value: (row) => row.marca },
@@ -206,8 +203,6 @@ export async function GET(request: Request) {
             numeroInterno: formatVehicleValue(log.codigoInterno ?? vehicle?.codigoInterno),
             empresa: formatVehicleValue(vehicle?.company),
             contratista: vehicle?.contratista?.razonSocial ?? "No informado",
-            chofer: "No informado en bitácora legacy",
-            rutChofer: "No informado",
             porteria: "No informada",
             tipoVehiculo: formatVehicleValue(vehicle?.vehicleType),
             marca: formatVehicleValue(vehicle?.brand),
@@ -216,7 +211,9 @@ export async function GET(request: Request) {
             tipoEvento: "Validación de acceso",
             usuarioOperador: log.operatorUsername ?? "No informado",
             rolOperador: log.operatorRole === "ADMIN" ? "Administrador" : log.operatorRole === "USER" ? "Portería" : "No informado",
-            porteriaOperador: log.operatorPorteriaNombre ?? "Sin asociación",
+            porteriaOperador: log.operatorPorteriaNombre
+                ? getOperationalPorteriaName(log.operatorPorteriaNombre)
+                : "Sin asociación",
         };
     });
 

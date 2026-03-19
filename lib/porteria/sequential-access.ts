@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { TipoEventoAcceso, EstadoRecintoVehiculo } from "@prisma/client";
+import { getOperationalPorteriaSortOrder } from "@/lib/porterias";
 
 const DEBUG_SEQUENTIAL_PORTERIA = process.env.DEBUG_SEQUENTIAL_PORTERIA === "true";
 
@@ -42,20 +43,62 @@ export type ValidationResult = {
     suggestedEstadoRecinto?: EstadoRecintoVehiculo;
 };
 
+type PorteriaOrdered = {
+    id: number;
+    nombre: string;
+    orden: number;
+};
+
+function toPorteriaOrdered(porteria: { id: number; nombre: string }): PorteriaOrdered {
+    return {
+        id: porteria.id,
+        nombre: porteria.nombre,
+        orden: getOperationalPorteriaSortOrder(porteria),
+    };
+}
+
 /** Get the last checkpoint event for a vehicle */
 async function getLastCheckpoint(vehiculoId: number) {
     return prisma.eventoAcceso.findFirst({
         where: { vehiculoId },
         orderBy: { fechaHora: "desc" },
-        include: { porteria: true },
+        select: {
+            id: true,
+            tipoEvento: true,
+            fechaHora: true,
+            porteria: {
+                select: {
+                    id: true,
+                    nombre: true,
+                },
+            },
+        },
     });
 }
 
 /** Get all porterías ordered by secuencia */
 async function getPorteriasOrdered(ordenDesc: boolean = false) {
-    return prisma.porteria.findMany({
-        orderBy: { orden: ordenDesc ? "desc" : "asc" },
+    const porterias = await prisma.porteria.findMany({
+        orderBy: { nombre: "asc" },
+        select: {
+            id: true,
+            nombre: true,
+        },
     });
+
+    const canonicalOrdered = porterias
+        .map(toPorteriaOrdered)
+        .sort((left, right) => {
+            const orderDelta = left.orden - right.orden;
+
+            if (orderDelta !== 0) {
+                return orderDelta;
+            }
+
+            return left.nombre.localeCompare(right.nombre, "es");
+        });
+
+    return ordenDesc ? [...canonicalOrdered].reverse() : canonicalOrdered;
 }
 
 /** Check if there's a recent duplicate event (same portería within 5 minutes) */
@@ -105,7 +148,7 @@ export async function getNextExpectedPorteria(
     }
 
     // Get last portería's orden
-    const lastOrden = lastEvent.porteria.orden;
+    const lastOrden = getOperationalPorteriaSortOrder(lastEvent.porteria);
     const porterias = await getPorteriasOrdered();
 
     if (tipoEvento === "ENTRADA") {
@@ -185,8 +228,14 @@ export async function validateNextCheckpoint(
     const nextExpected = await getNextExpectedPorteria(vehiculoId, tipoEvento);
     const currentPorteria = await prisma.porteria.findUnique({
         where: { id: porteriaId },
+        select: {
+            id: true,
+            nombre: true,
+        },
     });
     const lastEvent = await getLastCheckpoint(vehiculoId);
+    const currentPorteriaOrdered = currentPorteria ? toPorteriaOrdered(currentPorteria) : null;
+    const lastPorteriaOrdered = lastEvent ? toPorteriaOrdered(lastEvent.porteria) : null;
 
     debugSequentialLog("Contexto actual de secuencia.", {
         vehiculoId,
@@ -195,7 +244,7 @@ export async function validateNextCheckpoint(
             ? {
                 id: lastEvent.porteria.id,
                 nombre: lastEvent.porteria.nombre,
-                orden: lastEvent.porteria.orden,
+                orden: lastPorteriaOrdered?.orden ?? null,
                 tipoEvento: lastEvent.tipoEvento,
                 fechaHora: lastEvent.fechaHora,
             }
@@ -211,7 +260,7 @@ export async function validateNextCheckpoint(
             ? {
                 id: currentPorteria.id,
                 nombre: currentPorteria.nombre,
-                orden: currentPorteria.orden,
+                orden: currentPorteriaOrdered?.orden ?? null,
             }
             : null,
     });
@@ -238,7 +287,7 @@ export async function validateNextCheckpoint(
 
         return {
             valid: true,
-            nextExpectedPorteria: currentPorteria,
+            nextExpectedPorteria: currentPorteriaOrdered ?? undefined,
         };
     }
 
@@ -264,7 +313,7 @@ export async function validateNextCheckpoint(
 
         return {
             valid: true,
-            nextExpectedPorteria: currentPorteria,
+            nextExpectedPorteria: currentPorteriaOrdered ?? undefined,
         };
     }
 
@@ -272,7 +321,7 @@ export async function validateNextCheckpoint(
         debugSequentialLog("Rechazo por secuencia inválida.", {
             vehiculoId,
             porteriaSolicitada: currentPorteria.nombre,
-            ordenSolicitada: currentPorteria.orden,
+            ordenSolicitada: currentPorteriaOrdered?.orden ?? null,
             siguienteEsperada: nextExpected.nombre,
             ordenEsperada: nextExpected.orden,
         });
@@ -293,7 +342,7 @@ export async function validateNextCheckpoint(
 
     return {
         valid: true,
-        nextExpectedPorteria: currentPorteria,
+        nextExpectedPorteria: currentPorteriaOrdered ?? undefined,
     };
 }
 

@@ -6,7 +6,7 @@ import { getOperationalPorteriaName } from "@/lib/porterias";
 import { prisma } from "@/lib/prisma";
 import { normalizeLicensePlate } from "@/lib/utils";
 
-export type EstadoFaenaFilter = "TODOS" | "EN_FAENA" | "FUERA_DE_FAENA" | "EN_TRANSITO";
+export type EstadoFaenaFilter = "TODOS" | "EN_FAENA" | "FUERA_DE_FAENA";
 
 export type FaenaDashboardFilters = {
     plate: string;
@@ -20,6 +20,7 @@ export type FaenaDashboardVehicleRow = {
     vehicleType: string;
     companyName: string;
     estadoOperativo: EstadoOperativoVehiculo;
+    faenaActualNombre: string | null;
     ultimoMovimientoAt: Date | null;
     ultimoMovimientoTipo: "ENTRADA" | "SALIDA" | null;
     ultimaPorteriaNombre: string | null;
@@ -30,7 +31,6 @@ export type FaenaDashboardData = {
         totalVehicles: number;
         enFaenaVehicles: number;
         fueraFaenaVehicles: number;
-        transitVehicles: number;
     };
     options: {
         contratistas: Array<{
@@ -40,7 +40,6 @@ export type FaenaDashboardData = {
     };
     rows: {
         enFaena: FaenaDashboardVehicleRow[];
-        transit: FaenaDashboardVehicleRow[];
         fueraFaena: FaenaDashboardVehicleRow[];
     };
 };
@@ -68,7 +67,6 @@ const VEHICLE_SELECT = {
             porteria: {
                 select: {
                     nombre: true,
-                    orden: true,
                 },
             },
         },
@@ -102,6 +100,10 @@ function mapVehicleRow(record: VehicleWithLastEvent): FaenaDashboardVehicleRow {
     const movementSummary = summarizeMovementCycleFromTypes(
         record.eventosAcceso.map((event) => event.tipoEvento),
     );
+    const lastPorteriaNombre = lastEvent ? getOperationalPorteriaName(lastEvent.porteria) : null;
+    const faenaActualNombre = movementSummary.operationalState === "EN_FAENA"
+        ? lastPorteriaNombre
+        : null;
 
     return {
         id: record.id,
@@ -109,9 +111,10 @@ function mapVehicleRow(record: VehicleWithLastEvent): FaenaDashboardVehicleRow {
         vehicleType: record.vehicleType,
         companyName: record.contratista?.razonSocial ?? record.company,
         estadoOperativo: movementSummary.operationalState,
+        faenaActualNombre,
         ultimoMovimientoAt: lastEvent?.fechaHora ?? null,
         ultimoMovimientoTipo: lastEvent?.tipoEvento ?? null,
-        ultimaPorteriaNombre: lastEvent ? getOperationalPorteriaName(lastEvent.porteria) : null,
+        ultimaPorteriaNombre: lastPorteriaNombre,
     };
 }
 
@@ -160,14 +163,12 @@ export async function getFaenaDashboardData(filters: FaenaDashboardFilters): Pro
 
     const mappedRows = vehicleRecords.map(mapVehicleRow).sort(sortVehicles);
     const enFaenaRows = mappedRows.filter((row) => row.estadoOperativo === "EN_FAENA");
-    const transitRows = mappedRows.filter((row) => row.estadoOperativo === "EN_TRANSITO");
     const fueraFaenaRows = mappedRows.filter((row) => row.estadoOperativo === "FUERA_DE_FAENA");
 
     return {
         stats: {
             totalVehicles: mappedRows.length,
             enFaenaVehicles: enFaenaRows.length,
-            transitVehicles: transitRows.length,
             fueraFaenaVehicles: fueraFaenaRows.length,
         },
         options: {
@@ -175,7 +176,6 @@ export async function getFaenaDashboardData(filters: FaenaDashboardFilters): Pro
         },
         rows: {
             enFaena: enFaenaRows.slice(0, VEHICLE_LIST_LIMIT),
-            transit: transitRows.slice(0, VEHICLE_LIST_LIMIT),
             fueraFaena: fueraFaenaRows.slice(0, VEHICLE_LIST_LIMIT),
         },
     };

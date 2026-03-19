@@ -34,11 +34,7 @@ export function getOperationalStateLabel(estado: EstadoOperativoVehiculo) {
         return "EN FAENA";
     }
 
-    if (estado === "FUERA_DE_FAENA") {
-        return "FUERA DE FAENA";
-    }
-
-    return "EN TRÁNSITO";
+    return "FUERA DE FAENA";
 }
 
 export function toOperationalState(
@@ -46,10 +42,6 @@ export function toOperationalState(
 ): EstadoOperativoVehiculo {
     if (estadoRecinto === "DENTRO") {
         return "EN_FAENA";
-    }
-
-    if (estadoRecinto === "EN_TRANSITO") {
-        return "EN_TRANSITO";
     }
 
     return "FUERA_DE_FAENA";
@@ -60,10 +52,6 @@ export function toPersistedState(
 ): Exclude<EstadoRecintoPersistedValue, null> {
     if (estadoOperativo === "EN_FAENA") {
         return "DENTRO";
-    }
-
-    if (estadoOperativo === "EN_TRANSITO") {
-        return "EN_TRANSITO";
     }
 
     return "FUERA";
@@ -87,12 +75,8 @@ function buildMovementCycleSummary(
     const requiredMovements = getRequiredMovements(currentCycleType);
     const currentCycleCount = Math.min(rawCount, requiredMovements);
     const operationalState = currentCycleType === "ENTRADA"
-        ? currentCycleCount >= requiredMovements
-            ? "EN_FAENA"
-            : "EN_TRANSITO"
-        : currentCycleCount >= requiredMovements
-            ? "FUERA_DE_FAENA"
-            : "EN_TRANSITO";
+        ? "EN_FAENA"
+        : "FUERA_DE_FAENA";
 
     return {
         currentCycleType,
@@ -109,17 +93,13 @@ function buildObservation(summary: MovementCycleSummary, stateChanged: boolean) 
         return "Sin movimientos registrados";
     }
 
-    const progressLabel = `${getTipoEventoLabel(summary.currentCycleType)} ${summary.currentCycleCount}/${summary.requiredMovements}`;
-
-    if (summary.operationalState === "EN_TRANSITO") {
-        return progressLabel;
-    }
+    const progressLabel = getTipoEventoLabel(summary.currentCycleType);
 
     if (stateChanged) {
-        return `${progressLabel} · Estado actualizado a ${summary.operationalState}`;
+        return `${progressLabel} registrada · Estado actualizado a ${summary.operationalState}`;
     }
 
-    return `${progressLabel} · Estado ${summary.operationalState}`;
+    return `${progressLabel} registrada · Estado ${summary.operationalState}`;
 }
 
 export function summarizeMovementCycleFromTypes(

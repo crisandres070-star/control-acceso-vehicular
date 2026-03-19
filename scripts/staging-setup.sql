@@ -1,5 +1,5 @@
 -- ============================================================================
--- STAGING SETUP SCRIPT - Sequential Porterias Testing
+-- STAGING SETUP SCRIPT - Control Acceso Operativo
 -- ============================================================================
 -- Ejecutar SOLO en BD Staging
 -- Fecha: 18 Marzo 2026
@@ -21,17 +21,12 @@ ORDER BY table_name;
 -- La app consulta la tabla vehicles.
 
 -- ============================================================================
--- 1. VERIFICAR Y AGREGAR COLUMNA orden A porterias
+-- 1. VERIFICAR CATALOGO porterias (SIN DEPENDENCIA DE ORDEN)
 -- ============================================================================
 
-ALTER TABLE "porterias"
-ADD COLUMN IF NOT EXISTS "orden" INTEGER NOT NULL DEFAULT 0;
-
-CREATE INDEX IF NOT EXISTS "idx_porterias_orden" ON "porterias"("orden");
-
-SELECT id, nombre, orden, created_at
+SELECT id, nombre, telefono, created_at
 FROM porterias
-ORDER BY created_at ASC, id ASC;
+ORDER BY nombre ASC, id ASC;
 
 -- ============================================================================
 -- 2. ASEGURAR ENUM EstadoRecintoVehiculo CON EN_TRANSITO
@@ -56,50 +51,27 @@ WHERE enumtypid = 'EstadoRecintoVehiculo'::regtype
 ORDER BY enumsortorder;
 
 -- ============================================================================
--- 3. POBLAR/ORDENAR PORTERIAS REALES PARA FLUJO SECUENCIAL
+-- 3. ASEGURAR PORTERIAS REALES OPERATIVAS
 -- ============================================================================
--- La logica usa "orden" y la UI/historial muestra "nombre".
--- Nombres reales por defecto para staging secuencial:
--- 1. Cala Cala
--- 2. Soledad
--- 3. Tana
--- 4. Negreiros
+-- Nombres reales requeridos por operación:
+-- Cala Cala, Soledad, Tana, Negreiros
 
-WITH desired_porterias (orden, nombre) AS (
+WITH desired_porterias (nombre) AS (
   VALUES
-    (1, 'Cala Cala'),
-    (2, 'Soledad'),
-    (3, 'Tana'),
-    (4, 'Negreiros')
+    ('Cala Cala'),
+    ('Soledad'),
+    ('Tana'),
+    ('Negreiros')
 )
-INSERT INTO porterias (nombre, telefono, orden, created_at, updated_at)
-SELECT nombre, NULL, orden, NOW(), NOW()
+INSERT INTO porterias (nombre, telefono, created_at, updated_at)
+SELECT nombre, NULL, NOW(), NOW()
 FROM desired_porterias
 ON CONFLICT (nombre) DO UPDATE
-SET orden = EXCLUDED.orden,
-    updated_at = NOW();
+SET updated_at = NOW();
 
--- Opcional en staging: mover nombres genericos fuera de secuencia para evitar confusiones.
-UPDATE porterias
-SET orden = 0,
-    updated_at = NOW()
-WHERE nombre IN ('Portería 1', 'Portería 2', 'Portería 3', 'Portería 4');
-
-UPDATE porterias
-SET orden = 0,
-    updated_at = NOW()
-WHERE nombre IN ('Portería Entrada Minera', 'Control Caseta', 'Portería Salida Operativa', 'Salida Principal');
-
-SELECT id, nombre, orden, created_at
+SELECT id, nombre, telefono, created_at
 FROM porterias
-ORDER BY orden ASC, id ASC;
-
--- Validar que no existan ordenes duplicados en la secuencia activa 1..4.
-SELECT orden, COUNT(*)::int AS repetidos
-FROM porterias
-WHERE orden BETWEEN 1 AND 4
-GROUP BY orden
-HAVING COUNT(*) > 1;
+ORDER BY nombre ASC, id ASC;
 
 -- ============================================================================
 -- 4. DIAGNOSTICO OPERADORES (causa FK operado_por_id en BD nuevas)
@@ -261,7 +233,13 @@ SELECT
   ea.tipo_evento,
   ea.fecha_hora,
   p.nombre AS porteria,
-  p.orden,
+  CASE LOWER(p.nombre)
+    WHEN 'cala cala' THEN 1
+    WHEN 'soledad' THEN 2
+    WHEN 'tana' THEN 3
+    WHEN 'negreiros' THEN 4
+    ELSE 99
+  END AS orden_operativo,
   EXTRACT(EPOCH FROM (NOW() - ea.fecha_hora)) AS segundos_atras
 FROM eventos_acceso ea
 JOIN porterias p ON ea.porteria_id = p.id
@@ -275,7 +253,13 @@ SELECT
   ea.tipo_evento,
   ea.fecha_hora,
   p.nombre AS porteria,
-  p.orden,
+  CASE LOWER(p.nombre)
+    WHEN 'cala cala' THEN 1
+    WHEN 'soledad' THEN 2
+    WHEN 'tana' THEN 3
+    WHEN 'negreiros' THEN 4
+    ELSE 99
+  END AS orden_operativo,
   COALESCE(ea.observacion, '(sin observacion)') AS observacion
 FROM eventos_acceso ea
 JOIN porterias p ON ea.porteria_id = p.id
@@ -285,7 +269,13 @@ LIMIT 20;
 
 SELECT
   ROW_NUMBER() OVER (ORDER BY ea.fecha_hora ASC) AS paso,
-  p.orden,
+  CASE LOWER(p.nombre)
+    WHEN 'cala cala' THEN 1
+    WHEN 'soledad' THEN 2
+    WHEN 'tana' THEN 3
+    WHEN 'negreiros' THEN 4
+    ELSE 99
+  END AS orden_operativo,
   p.nombre,
   ea.tipo_evento,
   ea.fecha_hora

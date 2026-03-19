@@ -22,10 +22,6 @@ function formatEstadoRecintoLabel(value: EstadoRecintoVehiculo | null) {
         return "EN FAENA";
     }
 
-    if (value === "EN_TRANSITO") {
-        return "EN TRÁNSITO";
-    }
-
     return "FUERA DE FAENA";
 }
 

@@ -112,7 +112,6 @@ export async function GET(request: Request) {
             porteria: {
                 select: {
                     nombre: true,
-                    orden: true,
                 },
             },
         },

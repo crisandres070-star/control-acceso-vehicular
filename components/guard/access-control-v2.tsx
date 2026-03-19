@@ -5,18 +5,16 @@ import { useEffect, useRef, useState } from "react";
 import { type EstadoOperativoVehiculo } from "@/lib/access-control/constants";
 import {
     getOperationalStateLabel,
-    getTipoEventoLabel,
 } from "@/lib/access-control/state-utils";
 
 type PorteriaOption = {
     id: number;
     nombre: string;
     telefono: string | null;
-    orden?: number;
 };
 
 type TipoEventoOption = "ENTRADA" | "SALIDA";
-type EstadoRecintoOption = "DENTRO" | "FUERA" | "EN_TRANSITO" | null;
+type EstadoRecintoOption = "DENTRO" | "FUERA" | null;
 type EstadoOperativoOption = EstadoOperativoVehiculo;
 
 type MovementSummary = {
@@ -266,7 +264,7 @@ export function AccessControlV2({ porterias, contextLabel, defaultPorteriaId = n
         }
 
         if (porterias.length === 0) {
-            setLookupError("Debe registrar al menos una portería antes de usar este módulo.");
+            setLookupError("No hay porterías operativas disponibles en este momento.");
             setActionError(null);
             setSuccessMessage(null);
             setVehicle(null);
@@ -366,9 +364,6 @@ export function AccessControlV2({ porterias, contextLabel, defaultPorteriaId = n
 
             const nextSelectedPorteriaId = selectedPorteriaId;
             const estadoLabel = getOperationalStateLabel(data.estadoOperativo);
-            const progressLabel = data.movementSummary.currentCycleType
-                ? `${getTipoEventoLabel(data.movementSummary.currentCycleType)} ${data.movementSummary.currentCycleCount}/${data.movementSummary.requiredMovements}`
-                : null;
             const stateChangeMessage = data.stateChangedTo
                 ? ` Estado actualizado a ${getOperationalStateLabel(data.stateChangedTo)}.`
                 : ` Estado actual: ${estadoLabel}.`;
@@ -377,7 +372,7 @@ export function AccessControlV2({ porterias, contextLabel, defaultPorteriaId = n
             setLicensePlate("");
             setSelectedEventType("");
             setSelectedPorteriaId(nextSelectedPorteriaId);
-            setSuccessMessage(`Movimiento registrado correctamente.${stateChangeMessage}${progressLabel ? ` ${progressLabel}.` : ""} Pantalla lista para la siguiente patente.`);
+            setSuccessMessage(`Movimiento registrado correctamente.${stateChangeMessage} Pantalla lista para la siguiente patente.`);
             requestAnimationFrame(() => {
                 inputRef.current?.focus();
             });
@@ -442,7 +437,7 @@ export function AccessControlV2({ porterias, contextLabel, defaultPorteriaId = n
             <div className="space-y-5 p-5 lg:p-7">
                 {porterias.length === 0 ? (
                     <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-                        No hay porterías registradas. Cree una portería antes de operar este módulo.
+                        No hay porterías operativas disponibles. Contacte a administración.
                     </div>
                 ) : null}
 
@@ -552,11 +547,6 @@ export function AccessControlV2({ porterias, contextLabel, defaultPorteriaId = n
                                     <div className="mt-3 flex flex-wrap items-center gap-3">
                                         <span className={`inline-flex rounded-full px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] ${getOperationalStateClasses(vehicle.estadoOperativo)}`}>
                                             {getOperationalStateLabel(vehicle.estadoOperativo)}
-                                        </span>
-                                        <span className="text-sm text-slate-600">
-                                            {vehicle.movementSummary.currentCycleType
-                                                ? `${getTipoEventoLabel(vehicle.movementSummary.currentCycleType)} ${vehicle.movementSummary.currentCycleCount}/${vehicle.movementSummary.requiredMovements}`
-                                                : "Sin movimientos previos"}
                                         </span>
                                     </div>
                                     {vehicle.ultimoEvento ? (

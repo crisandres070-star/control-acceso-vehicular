@@ -27,7 +27,6 @@ type EventoAccesoRow = {
     };
     porteria: {
         nombre: string;
-        orden: number;
     };
 };
 
@@ -39,7 +38,6 @@ type ContratistaOption = {
 type PorteriaOption = {
     id: number;
     nombre: string;
-    orden: number;
 };
 
 type EventosAccesoPageProps = {
@@ -93,7 +91,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
     let entradasHoy = 0;
     let salidasHoy = 0;
     let vehiculosEnFaena = 0;
-    let vehiculosEnTransito = 0;
     let vehiculosFuera = 0;
     let loadErrorMessage: string | null = null;
 
@@ -106,7 +103,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
             entradasHoyCount,
             salidasHoyCount,
             vehiculosEnFaenaCount,
-            vehiculosEnTransitoCount,
             vehiculosFueraCount,
         ] = await Promise.all([
             prisma.eventoAcceso.findMany({
@@ -132,7 +128,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                     porteria: {
                         select: {
                             nombre: true,
-                            orden: true,
                         },
                     },
                 },
@@ -153,9 +148,8 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                 select: {
                     id: true,
                     nombre: true,
-                    orden: true,
                 },
-                orderBy: [{ orden: "asc" }, { nombre: "asc" }],
+                orderBy: { nombre: "asc" },
             }),
             prisma.eventoAcceso.count({
                 where: {
@@ -181,14 +175,12 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
             }),
             prisma.vehicle.count({
                 where: {
-                    estadoRecinto: "EN_TRANSITO",
-                },
-            }),
-            prisma.vehicle.count({
-                where: {
                     OR: [
                         {
                             estadoRecinto: "FUERA",
+                        },
+                        {
+                            estadoRecinto: "EN_TRANSITO",
                         },
                         {
                             estadoRecinto: null,
@@ -205,7 +197,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
         entradasHoy = entradasHoyCount;
         salidasHoy = salidasHoyCount;
         vehiculosEnFaena = vehiculosEnFaenaCount;
-        vehiculosEnTransito = vehiculosEnTransitoCount;
         vehiculosFuera = vehiculosFueraCount;
     } catch (error) {
         console.error("[admin/eventos-acceso] No fue posible cargar datos iniciales", error);
@@ -376,7 +367,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                 <div className="panel px-5 py-5 lg:px-6 lg:py-6">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Estado del recinto</p>
                     <p className="mt-3 text-lg font-semibold text-slate-950">En faena: {vehiculosEnFaena}</p>
-                    <p className="mt-1 text-lg font-semibold text-slate-950">En tránsito: {vehiculosEnTransito}</p>
                     <p className="mt-1 text-lg font-semibold text-slate-950">Fuera de faena: {vehiculosFuera}</p>
                 </div>
             </section>
@@ -421,7 +411,7 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                                             {evento.operadoPorRole === "ADMIN" ? "Administrador" : evento.operadoPorRole === "USER" ? "Portería" : "Sin rol"}
                                         </p>
                                         {evento.operadoPorPorteriaNombre ? (
-                                            <p className="mt-1 text-xs text-slate-500">Cuenta: {getOperationalPorteriaName(evento.operadoPorPorteriaNombre)}</p>
+                                            <p className="mt-1 text-xs text-slate-500">Portería operador: {getOperationalPorteriaName(evento.operadoPorPorteriaNombre)}</p>
                                         ) : null}
                                     </td>
                                     <td className="px-6 py-5 text-slate-700">{evento.observacion?.trim() || "Sin observación"}</td>
