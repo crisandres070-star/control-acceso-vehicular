@@ -56,7 +56,7 @@ export function VehicleImportForm({ validateImportFileAction }: VehicleImportFor
                     <div>
                         <p className="text-sm font-semibold text-slate-900">Validacion previa obligatoria</p>
                         <p className="mt-1 text-sm leading-6 text-slate-500">
-                            Se valida estructura de columnas, calidad de filas y duplicados antes de habilitar la importacion.
+                            Se valida estructura real de columnas, se detecta automaticamente la fila de encabezados y se omiten filas invalidas sin bloquear toda la importacion.
                         </p>
                     </div>
 

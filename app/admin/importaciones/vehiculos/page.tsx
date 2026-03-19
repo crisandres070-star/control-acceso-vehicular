@@ -16,6 +16,7 @@ import {
     ImportPreviewNotFoundError,
     loadStoredImportPreview,
 } from "@/lib/import/import-service";
+import type { ImportPreview } from "@/lib/import/types";
 import { getQueryStringValue } from "@/lib/utils";
 
 type ImportacionVehiculosPageProps = {
@@ -26,6 +27,8 @@ type ImportacionVehiculosPageProps = {
         importedContractors?: string | string[];
         existingContractors?: string | string[];
         importedVehicles?: string | string[];
+        updatedVehicles?: string | string[];
+        unchangedVehicles?: string | string[];
         existingVehicles?: string | string[];
         validRows?: string | string[];
         invalidRows?: string | string[];
@@ -74,6 +77,22 @@ function getErrorMessage(error: unknown) {
     return "No fue posible recuperar la vista previa de importacion.";
 }
 
+function getPreviewBlockedMessage(preview: ImportPreview) {
+    if (preview.summary.canImport) {
+        return "";
+    }
+
+    if (preview.summary.globalCriticalErrors > 0) {
+        return "Corrija los errores estructurales del archivo antes de confirmar la importacion.";
+    }
+
+    if (preview.summary.validRows === 0) {
+        return "No hay filas validas para importar. Revise las filas con error y vuelva a validar el archivo.";
+    }
+
+    return "El archivo fue validado, pero no contiene registros nuevos ni cambios para actualizar.";
+}
+
 export default async function ImportacionVehiculosPage({ searchParams }: ImportacionVehiculosPageProps) {
     const session = await requireRole("ADMIN");
     const previewId = String(getQueryStringValue(searchParams.preview) ?? "").trim();
@@ -93,6 +112,9 @@ export default async function ImportacionVehiculosPage({ searchParams }: Importa
     const importedContractors = parsePositiveIntegerParam(getQueryStringValue(searchParams.importedContractors));
     const existingContractors = parsePositiveIntegerParam(getQueryStringValue(searchParams.existingContractors));
     const importedVehicles = parsePositiveIntegerParam(getQueryStringValue(searchParams.importedVehicles));
+    const updatedVehicles = parsePositiveIntegerParam(getQueryStringValue(searchParams.updatedVehicles));
+    const unchangedVehicles = parsePositiveIntegerParam(getQueryStringValue(searchParams.unchangedVehicles))
+        || parsePositiveIntegerParam(getQueryStringValue(searchParams.existingVehicles));
     const existingVehicles = parsePositiveIntegerParam(getQueryStringValue(searchParams.existingVehicles));
     const validRows = parsePositiveIntegerParam(getQueryStringValue(searchParams.validRows));
     const invalidRows = parsePositiveIntegerParam(getQueryStringValue(searchParams.invalidRows));
@@ -101,6 +123,7 @@ export default async function ImportacionVehiculosPage({ searchParams }: Importa
     const warnings = parsePositiveIntegerParam(getQueryStringValue(searchParams.warnings));
     const totalRows = parsePositiveIntegerParam(getQueryStringValue(searchParams.totalRows));
     const previewReady = Boolean(storedPreview?.preview.summary.canImport);
+    const previewBlockedMessage = storedPreview ? getPreviewBlockedMessage(storedPreview.preview) : "";
 
     return (
         <div className="space-y-6">
@@ -162,24 +185,24 @@ export default async function ImportacionVehiculosPage({ searchParams }: Importa
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">Filas leidas</p>
                             <p className="mt-2 text-3xl font-bold text-green-900">{totalRows}</p>
                         </div>
-                        <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">Filas validas</p>
-                            <p className="mt-2 text-3xl font-bold text-green-900">{validRows}</p>
+                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Filas con error</p>
+                            <p className="mt-2 text-3xl font-bold text-slate-900">{invalidRows}</p>
                         </div>
                         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">Vehiculos insertados</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-green-700">Vehiculos nuevos</p>
                             <p className="mt-2 text-3xl font-bold text-green-900">{importedVehicles}</p>
                         </div>
-                        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Omitidas por duplicado</p>
-                            <p className="mt-2 text-3xl font-bold text-amber-800">{omittedDuplicates}</p>
+                        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-indigo-700">Vehiculos actualizados</p>
+                            <p className="mt-2 text-3xl font-bold text-indigo-900">{updatedVehicles}</p>
                         </div>
                     </div>
 
                     <div className="grid gap-4 px-6 pb-6 md:grid-cols-2 xl:grid-cols-4 lg:px-8 lg:pb-8">
                         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
-                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Filas con error</p>
-                            <p className="mt-2 text-2xl font-bold text-slate-900">{invalidRows}</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Filas validas</p>
+                            <p className="mt-2 text-2xl font-bold text-slate-900">{validRows}</p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Empresas nuevas</p>
@@ -190,13 +213,17 @@ export default async function ImportacionVehiculosPage({ searchParams }: Importa
                             <p className="mt-2 text-2xl font-bold text-slate-900">{existingContractors}</p>
                         </div>
                         <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
+                            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Existentes sin cambios</p>
+                            <p className="mt-2 text-2xl font-bold text-slate-900">{unchangedVehicles}</p>
+                        </div>
+                        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-4">
                             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Advertencias</p>
                             <p className="mt-2 text-2xl font-bold text-slate-900">{warnings}</p>
                         </div>
                     </div>
 
                     <p className="px-6 pb-6 text-sm text-slate-600 lg:px-8 lg:pb-8">
-                        Vehiculos ya existentes omitidos: <span className="font-semibold text-slate-900">{existingVehicles}</span>. Duplicados internos dentro del Excel: <span className="font-semibold text-slate-900">{duplicateInternal}</span>.
+                        Vehiculos existentes sin cambios: <span className="font-semibold text-slate-900">{unchangedVehicles || existingVehicles}</span>. Duplicados internos dentro del Excel: <span className="font-semibold text-slate-900">{duplicateInternal}</span>. Omitidas por duplicado interno o sin cambios: <span className="font-semibold text-slate-900">{omittedDuplicates}</span>.
                     </p>
                 </section>
             ) : null}
@@ -217,7 +244,7 @@ export default async function ImportacionVehiculosPage({ searchParams }: Importa
                         />
                         {!previewReady ? (
                             <p className="mt-3 text-sm text-slate-600">
-                                Corrija los errores estructurales del archivo antes de confirmar la importacion.
+                                {previewBlockedMessage}
                             </p>
                         ) : null}
                     </section>

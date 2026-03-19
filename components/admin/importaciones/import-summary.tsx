@@ -24,9 +24,29 @@ function getIssueClasses(severity: ImportIssue["severity"]) {
 }
 
 export function ImportSummary({ preview }: ImportSummaryProps) {
-    const omittedDuplicates = preview.summary.existingVehicles + preview.summary.duplicateInternal;
+    const duplicateInternal = preview.summary.duplicateInternal;
     const criticalIssues = preview.issues.filter((issue) => issue.severity === "critical");
     const warningIssues = preview.issues.filter((issue) => issue.severity === "warning");
+    const globalCriticalIssues = criticalIssues.filter((issue) => typeof issue.rowNumber !== "number");
+    const vehicleItemsByPlate = new Map(
+        [
+            ...preview.vehicles.newItems,
+            ...preview.vehicles.updatableItems,
+            ...preview.vehicles.existingItems,
+        ].map((item) => [item.patente, item]),
+    );
+
+    function formatUpdateFieldLabel(field: "numeroInterno" | "empresa" | "tipoVehiculo") {
+        if (field === "numeroInterno") {
+            return "N°Interno";
+        }
+
+        if (field === "tipoVehiculo") {
+            return "Tipo vehiculo";
+        }
+
+        return "Empresa";
+    }
 
     return (
         <div className="space-y-5">
@@ -46,12 +66,12 @@ export function ImportSummary({ preview }: ImportSummaryProps) {
                     </p>
                 </div>
                 <div className="panel px-5 py-5 lg:px-6 lg:py-6">
-                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Omitidas por duplicado</p>
-                    <p className="mt-3 text-4xl font-bold text-amber-700">{omittedDuplicates}</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Duplicados internos</p>
+                    <p className="mt-3 text-4xl font-bold text-amber-700">{duplicateInternal}</p>
                 </div>
             </section>
 
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                 <div className="panel p-5">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Empresas nuevas</p>
                     <p className="mt-3 text-2xl font-bold text-slate-950">{preview.summary.newContractors}</p>
@@ -65,7 +85,11 @@ export function ImportSummary({ preview }: ImportSummaryProps) {
                     <p className="mt-3 text-2xl font-bold text-slate-950">{preview.summary.newVehicles}</p>
                 </div>
                 <div className="panel p-5">
-                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Vehiculos existentes</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Vehiculos actualizables</p>
+                    <p className="mt-3 text-2xl font-bold text-indigo-700">{preview.summary.updatableVehicles}</p>
+                </div>
+                <div className="panel p-5">
+                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Existentes sin cambios</p>
                     <p className="mt-3 text-2xl font-bold text-slate-950">{preview.summary.existingVehicles}</p>
                 </div>
             </section>
@@ -118,13 +142,21 @@ export function ImportSummary({ preview }: ImportSummaryProps) {
                         </p>
                     ) : null}
 
-                    {criticalIssues.length > 0 ? (
+                    {globalCriticalIssues.length > 0 ? (
                         <p className="text-sm font-semibold text-red-700">
-                            Se detectaron {criticalIssues.length} errores criticos y {warningIssues.length} advertencias.
+                            Se detectaron {globalCriticalIssues.length} errores estructurales y {warningIssues.length} advertencias.
+                        </p>
+                    ) : preview.summary.validRows === 0 ? (
+                        <p className="text-sm font-semibold text-amber-700">
+                            No hay filas validas para importar. Revise las filas con error y vuelva a validar el archivo.
+                        </p>
+                    ) : !preview.summary.canImport ? (
+                        <p className="text-sm font-semibold text-amber-700">
+                            El archivo fue validado, pero no contiene registros nuevos ni cambios para actualizar.
                         </p>
                     ) : (
                         <p className="text-sm font-semibold text-green-700">
-                            No hay errores criticos globales. Puede importar filas validas.
+                            No hay errores estructurales globales. Puede importar filas validas.
                         </p>
                     )}
                 </div>
@@ -150,7 +182,21 @@ export function ImportSummary({ preview }: ImportSummaryProps) {
                         </thead>
                         <tbody>
                             {preview.importRows.slice(0, VEHICLE_LIST_LIMIT).map((row) => {
-                                const existingVehicle = preview.vehicles.existingItems.find((item) => item.patente === row.patente);
+                                const vehicleItem = vehicleItemsByPlate.get(row.patente);
+                                const status = vehicleItem?.status ?? "existing";
+                                const badgeClass = status === "new"
+                                    ? "bg-green-100 text-green-700"
+                                    : status === "updatable"
+                                        ? "bg-indigo-100 text-indigo-700"
+                                        : "bg-slate-100 text-slate-700";
+                                const badgeLabel = status === "new"
+                                    ? "Nuevo"
+                                    : status === "updatable"
+                                        ? "Actualizable"
+                                        : "Sin cambios";
+                                const updateFieldsText = status === "updatable"
+                                    ? (vehicleItem?.updateFields ?? []).map(formatUpdateFieldLabel).join(", ")
+                                    : "";
 
                                 return (
                                     <tr className="rounded-2xl border border-slate-200 bg-white shadow-sm" key={`${row.__row}-${row.patente}`}>
@@ -160,15 +206,12 @@ export function ImportSummary({ preview }: ImportSummaryProps) {
                                         <td className="px-4 py-3 text-sm text-slate-700">{row.empresa}</td>
                                         <td className="px-4 py-3 text-sm text-slate-700">{row.tipoVehiculo}</td>
                                         <td className="px-4 py-3 text-sm">
-                                            {existingVehicle ? (
-                                                <span className="inline-flex rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">
-                                                    Existente
-                                                </span>
-                                            ) : (
-                                                <span className="inline-flex rounded-full bg-green-100 px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-green-700">
-                                                    Nuevo
-                                                </span>
-                                            )}
+                                            <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${badgeClass}`}>
+                                                {badgeLabel}
+                                            </span>
+                                            {status === "updatable" && updateFieldsText ? (
+                                                <p className="mt-1 text-xs text-slate-500">Campos: {updateFieldsText}</p>
+                                            ) : null}
                                         </td>
                                     </tr>
                                 );

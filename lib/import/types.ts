@@ -69,9 +69,9 @@ export type ImportPreviewVehicleItem = {
     numeroInterno: string;
     tipoVehiculo: string;
     rowNumber: number;
-    status: "new" | "existing";
+    status: "new" | "updatable" | "existing";
     vehicleId: number | null;
-    companyMismatch: boolean;
+    updateFields: Array<"numeroInterno" | "empresa" | "tipoVehiculo">;
     companyActual: string | null;
     contratistaActual: string | null;
 };
@@ -84,6 +84,7 @@ export type ImportPreviewSummary = {
     newContractors: number;
     existingContractors: number;
     newVehicles: number;
+    updatableVehicles: number;
     existingVehicles: number;
     duplicateInternal: number;
     warnings: number;
@@ -106,6 +107,7 @@ export type ImportPreview = {
     };
     vehicles: {
         newItems: ImportPreviewVehicleItem[];
+        updatableItems: ImportPreviewVehicleItem[];
         existingItems: ImportPreviewVehicleItem[];
     };
     importRows: ParsedExcelImportRow[];
@@ -125,6 +127,8 @@ export type ImportExecutionResult = {
     createdContractors: number;
     existingContractors: number;
     createdVehicles: number;
+    updatedVehicles: number;
+    unchangedVehicles: number;
     existingVehicles: number;
     validRows: number;
     invalidRows: number;

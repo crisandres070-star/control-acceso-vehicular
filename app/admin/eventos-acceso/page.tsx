@@ -102,8 +102,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
             eventosHoyCount,
             entradasHoyCount,
             salidasHoyCount,
-            vehiculosEnFaenaCount,
-            vehiculosFueraCount,
         ] = await Promise.all([
             prisma.eventoAcceso.findMany({
                 where: whereInput,
@@ -168,26 +166,6 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
                     tipoEvento: "SALIDA",
                 },
             }),
-            prisma.vehicle.count({
-                where: {
-                    estadoRecinto: "DENTRO",
-                },
-            }),
-            prisma.vehicle.count({
-                where: {
-                    OR: [
-                        {
-                            estadoRecinto: "FUERA",
-                        },
-                        {
-                            estadoRecinto: "EN_TRANSITO",
-                        },
-                        {
-                            estadoRecinto: null,
-                        },
-                    ],
-                },
-            }),
         ]);
 
         eventos = eventRecords as unknown as EventoAccesoRow[];
@@ -196,8 +174,24 @@ export default async function EventosAccesoPage({ searchParams }: EventosAccesoP
         eventosHoy = eventosHoyCount;
         entradasHoy = entradasHoyCount;
         salidasHoy = salidasHoyCount;
-        vehiculosEnFaena = vehiculosEnFaenaCount;
-        vehiculosFuera = vehiculosFueraCount;
+
+        try {
+            const [vehiculosEnFaenaCount, vehiculosTotalesCount] = await Promise.all([
+                prisma.vehicle.count({
+                    where: {
+                        estadoRecinto: "DENTRO",
+                    },
+                }),
+                prisma.vehicle.count(),
+            ]);
+
+            vehiculosEnFaena = vehiculosEnFaenaCount;
+            vehiculosFuera = Math.max(vehiculosTotalesCount - vehiculosEnFaenaCount, 0);
+        } catch (estadoRecintoError) {
+            console.error("[admin/eventos-acceso] No fue posible cargar estado del recinto", estadoRecintoError);
+            vehiculosEnFaena = 0;
+            vehiculosFuera = 0;
+        }
     } catch (error) {
         console.error("[admin/eventos-acceso] No fue posible cargar datos iniciales", error);
         loadErrorMessage = "No fue posible cargar el reporte en este momento. Puede continuar operando desde Control de acceso.";

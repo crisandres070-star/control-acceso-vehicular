@@ -35,6 +35,8 @@ function buildImportRedirectPath(params: {
     importedContractors?: number;
     existingContractors?: number;
     importedVehicles?: number;
+    updatedVehicles?: number;
+    unchangedVehicles?: number;
     existingVehicles?: number;
     validRows?: number;
     invalidRows?: number;
@@ -71,6 +73,14 @@ function buildImportRedirectPath(params: {
 
     if (typeof params.importedVehicles === "number") {
         searchParams.set("importedVehicles", String(params.importedVehicles));
+    }
+
+    if (typeof params.updatedVehicles === "number") {
+        searchParams.set("updatedVehicles", String(params.updatedVehicles));
+    }
+
+    if (typeof params.unchangedVehicles === "number") {
+        searchParams.set("unchangedVehicles", String(params.unchangedVehicles));
     }
 
     if (typeof params.existingVehicles === "number") {
@@ -264,6 +274,8 @@ export async function confirmImportAction(formData: FormData) {
             importedContractors: result.createdContractors,
             existingContractors: result.existingContractors,
             importedVehicles: result.createdVehicles,
+            updatedVehicles: result.updatedVehicles,
+            unchangedVehicles: result.unchangedVehicles,
             existingVehicles: result.existingVehicles,
             validRows: result.validRows,
             invalidRows: result.invalidRows,

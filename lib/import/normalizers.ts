@@ -45,5 +45,14 @@ export function normalizeTipoVehiculo(value: string) {
 }
 
 export function normalizeHeaderLabel(value: string) {
-    return normalizeUpper(value);
+    return normalizeUpper(value)
+        .replace(/N[°º]/g, "NRO")
+        .replace(/\bNUMERO\b/g, "NRO")
+        .replace(/\bNUM\b/g, "NRO")
+        .replace(/\bNO\b/g, "NRO")
+        .replace(/\bCOD\b/g, "CODIGO")
+        .replace(/\bDE\b/g, " ")
+        .replace(/\bDEL\b/g, " ")
+        .replace(/\bLA\b/g, " ")
+        .replace(/[^A-Z0-9]+/g, "");
 }

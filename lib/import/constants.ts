@@ -26,20 +26,26 @@ export const IMPORT_HEADER_ALIASES = {
         "Pat",
         "Placa",
         "PPU",
+        "Patente / PPU",
     ],
     numeroInterno: [
         "N°Interno",
         "N° Interno",
+        "NºInterno",
+        "Nº Interno",
         "Nro Interno",
         "Nro. Interno",
         "Numero Interno",
         "Num Interno",
+        "N Interno",
         "Codigo Interno",
+        "Cod. Interno",
     ],
     empresa: [
         "Empresa",
         "Contratista",
         "Razon Social",
+        "Empresa / Contratista",
     ],
     tipoVehiculo: [
         "Tipo vehiculo",
@@ -47,6 +53,7 @@ export const IMPORT_HEADER_ALIASES = {
         "Tipo",
         "Clase vehiculo",
         "Clase vehículo",
+        "Tipo / Clase",
     ],
 } as const satisfies Record<ImportRequiredHeaderKey, readonly string[]>;
 
@@ -58,6 +65,7 @@ export const IMPORT_ALLOWED_MIME_TYPES = [
 
 export const IMPORT_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const IMPORT_MAX_FILE_SIZE_LABEL = "5 MB";
+export const IMPORT_HEADER_SCAN_ROW_LIMIT = 10;
 export const IMPORT_PREVIEW_TTL_MS = 30 * 60 * 1000;
 export const IMPORT_AI_ANALYSIS_TTL_MS = 30 * 60 * 1000;
 export const IMPORT_AI_ANALYSIS_SAMPLE_ROWS = 5;

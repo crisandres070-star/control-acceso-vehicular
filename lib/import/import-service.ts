@@ -11,7 +11,12 @@ import {
     SYNTHETIC_CONTRATISTA_RUT_RANGE,
 } from "@/lib/import/constants";
 import { parseSingleSheetExcel } from "@/lib/import/excel-single-sheet-parser";
-import { normalizeEmpresa, normalizePatente } from "@/lib/import/normalizers";
+import {
+    normalizeEmpresa,
+    normalizeNumeroInterno,
+    normalizePatente,
+    normalizeTipoVehiculo,
+} from "@/lib/import/normalizers";
 import { buildImportPreview, buildNormalizedContratistaLookup } from "@/lib/import/preview-builder";
 import type {
     ImportExecutionResult,
@@ -26,6 +31,19 @@ type ContratistaTransactionRecord = {
     id: number;
     razonSocial: string;
     rut: string;
+};
+
+type ExistingVehicleImportRecord = {
+    id: number;
+    licensePlate: string;
+    codigoInterno: string;
+    vehicleType: string;
+    company: string;
+    contratistaId: number | null;
+    contratista: {
+        id: number;
+        razonSocial: string;
+    } | null;
 };
 
 type ImportPreviewStoreClient = Prisma.TransactionClient | typeof prisma;
@@ -46,6 +64,31 @@ const PREVIEW_EXPIRED_MESSAGE = "La vista previa expiró. Vuelva a cargar el arc
 const PREVIEW_ACCESS_DENIED_MESSAGE = "La vista previa no pertenece al usuario autenticado.";
 const PREVIEW_INVALID_MESSAGE = "La vista previa temporal es inválida. Vuelva a cargar el archivo.";
 const PREVIEW_CONFIRMATION_CONFLICT_MESSAGE = "La importación detectó un conflicto de datos duplicados al confirmar. Vuelva a validar el archivo.";
+
+function getExistingVehicleCompanyReference(vehicle: ExistingVehicleImportRecord) {
+    return vehicle.contratista?.razonSocial ?? vehicle.company;
+}
+
+function resolveVehicleUpdateFields(
+    vehicle: ExistingVehicleImportRecord,
+    row: ParsedExcelImportRow,
+): Array<"numeroInterno" | "empresa" | "tipoVehiculo"> {
+    const updateFields: Array<"numeroInterno" | "empresa" | "tipoVehiculo"> = [];
+
+    if (normalizeNumeroInterno(vehicle.codigoInterno) !== row.numeroInterno) {
+        updateFields.push("numeroInterno");
+    }
+
+    if (normalizeTipoVehiculo(vehicle.vehicleType) !== row.tipoVehiculo) {
+        updateFields.push("tipoVehiculo");
+    }
+
+    if (normalizeEmpresa(getExistingVehicleCompanyReference(vehicle)) !== row.empresaKey) {
+        updateFields.push("empresa");
+    }
+
+    return updateFields;
+}
 
 const IMPORT_PREVIEW_SELECT = {
     id: true,
@@ -110,6 +153,9 @@ function parseStoredPreviewJson(value: Prisma.JsonValue, fallbackFileName: strin
     }
 
     const preview = value as unknown as ImportPreview;
+    const summary = preview.summary;
+
+    const toSafeNumber = (input: unknown) => (typeof input === "number" && Number.isFinite(input) ? input : 0);
 
     if (!isPlainObject(preview.summary) || !Array.isArray(preview.issues) || !Array.isArray(preview.importRows)) {
         throw new Error(PREVIEW_INVALID_MESSAGE);
@@ -122,6 +168,23 @@ function parseStoredPreviewJson(value: Prisma.JsonValue, fallbackFileName: strin
         generatedAt: typeof preview.generatedAt === "string" && preview.generatedAt.trim()
             ? preview.generatedAt
             : new Date().toISOString(),
+        summary: {
+            totalRows: toSafeNumber(summary?.totalRows),
+            validRows: toSafeNumber(summary?.validRows),
+            invalidRows: toSafeNumber(summary?.invalidRows),
+            blankRows: toSafeNumber(summary?.blankRows),
+            newContractors: toSafeNumber(summary?.newContractors),
+            existingContractors: toSafeNumber(summary?.existingContractors),
+            newVehicles: toSafeNumber(summary?.newVehicles),
+            updatableVehicles: toSafeNumber(summary?.updatableVehicles),
+            existingVehicles: toSafeNumber(summary?.existingVehicles),
+            duplicateInternal: toSafeNumber(summary?.duplicateInternal),
+            warnings: toSafeNumber(summary?.warnings),
+            criticalErrors: toSafeNumber(summary?.criticalErrors),
+            globalCriticalErrors: toSafeNumber(summary?.globalCriticalErrors),
+            rowCriticalErrors: toSafeNumber(summary?.rowCriticalErrors),
+            canImport: Boolean(summary?.canImport),
+        },
         duplicates: Array.isArray(preview.duplicates) ? preview.duplicates : [],
         contractors: {
             newItems: Array.isArray(preview.contractors?.newItems) ? preview.contractors.newItems : [],
@@ -129,6 +192,7 @@ function parseStoredPreviewJson(value: Prisma.JsonValue, fallbackFileName: strin
         },
         vehicles: {
             newItems: Array.isArray(preview.vehicles?.newItems) ? preview.vehicles.newItems : [],
+            updatableItems: Array.isArray(preview.vehicles?.updatableItems) ? preview.vehicles.updatableItems : [],
             existingItems: Array.isArray(preview.vehicles?.existingItems) ? preview.vehicles.existingItems : [],
         },
     };
@@ -292,7 +356,7 @@ async function loadExistingVehicleRecordsByNormalizedPlates(
     normalizedPlates: string[],
 ) {
     if (normalizedPlates.length === 0) {
-        return [] as Array<{ licensePlate: string }>;
+        return [] as ExistingVehicleImportRecord[];
     }
 
     const foundVehicleIds = new Set<number>();
@@ -312,10 +376,10 @@ async function loadExistingVehicleRecordsByNormalizedPlates(
     }
 
     if (foundVehicleIds.size === 0) {
-        return [] as Array<{ licensePlate: string }>;
+        return [] as ExistingVehicleImportRecord[];
     }
 
-    const records: Array<{ licensePlate: string }> = [];
+    const records: ExistingVehicleImportRecord[] = [];
 
     for (const idChunk of chunkRows(Array.from(foundVehicleIds), 500)) {
         const chunkRecords = await client.vehicle.findMany({
@@ -325,7 +389,18 @@ async function loadExistingVehicleRecordsByNormalizedPlates(
                 },
             },
             select: {
+                id: true,
                 licensePlate: true,
+                codigoInterno: true,
+                vehicleType: true,
+                company: true,
+                contratistaId: true,
+                contratista: {
+                    select: {
+                        id: true,
+                        razonSocial: true,
+                    },
+                },
             },
         });
 
@@ -496,12 +571,48 @@ async function executeImportRows(
     }
 
     const existingVehicleRecords = await loadExistingVehicleRecordsByNormalizedPlates(client, uniquePlates);
-    const existingVehicleSet = new Set(
-        existingVehicleRecords
-            .map((record) => normalizePatente(record.licensePlate))
-            .filter(Boolean),
-    );
-    const rowsToCreate = rows.filter((row) => !existingVehicleSet.has(row.patente));
+    const existingVehicleLookup = new Map<string, ExistingVehicleImportRecord>();
+
+    for (const vehicleRecord of existingVehicleRecords) {
+        const normalizedPlate = normalizePatente(vehicleRecord.licensePlate);
+
+        if (!normalizedPlate || existingVehicleLookup.has(normalizedPlate)) {
+            continue;
+        }
+
+        existingVehicleLookup.set(normalizedPlate, vehicleRecord);
+    }
+
+    const rowsToCreate: ParsedExcelImportRow[] = [];
+    const rowsToUpdate: Array<{
+        row: ParsedExcelImportRow;
+        vehicleId: number;
+        updateFields: Array<"numeroInterno" | "empresa" | "tipoVehiculo">;
+    }> = [];
+    const unchangedRows: ParsedExcelImportRow[] = [];
+
+    for (const row of rows) {
+        const existingVehicle = existingVehicleLookup.get(row.patente);
+
+        if (!existingVehicle) {
+            rowsToCreate.push(row);
+            continue;
+        }
+
+        const updateFields = resolveVehicleUpdateFields(existingVehicle, row);
+
+        if (updateFields.length === 0) {
+            unchangedRows.push(row);
+            continue;
+        }
+
+        rowsToUpdate.push({
+            row,
+            vehicleId: existingVehicle.id,
+            updateFields,
+        });
+    }
+
     const vehicleCreateData = rowsToCreate.map((row) => {
         const contractor = contractorLookup.get(row.empresaKey);
 
@@ -538,14 +649,48 @@ async function executeImportRows(
         createdVehicles += result.count;
     }
 
+    let updatedVehicles = 0;
+
+    for (const rowToUpdate of rowsToUpdate) {
+        const contractor = contractorLookup.get(rowToUpdate.row.empresaKey);
+
+        if (!contractor) {
+            throw new Error(`No se pudo resolver el contratista para la empresa ${rowToUpdate.row.empresa}.`);
+        }
+
+        const data: Prisma.VehicleUpdateInput = {
+            codigoInterno: rowToUpdate.row.numeroInterno,
+            vehicleType: rowToUpdate.row.tipoVehiculo,
+            company: contractor.razonSocial,
+            contratista: {
+                connect: {
+                    id: contractor.id,
+                },
+            },
+        };
+
+        await client.vehicle.update({
+            where: {
+                id: rowToUpdate.vehicleId,
+            },
+            data,
+        });
+
+        updatedVehicles += 1;
+    }
+
+    const unchangedVehicles = unchangedRows.length;
+
     return {
         createdContractors,
         existingContractors: companyGroups.length - createdContractors,
         createdVehicles,
-        existingVehicles: uniquePlates.length - createdVehicles,
+        updatedVehicles,
+        unchangedVehicles,
+        existingVehicles: unchangedVehicles,
         validRows: preview.summary.validRows,
         invalidRows: preview.summary.invalidRows,
-        omittedDuplicates: (uniquePlates.length - createdVehicles) + preview.summary.duplicateInternal,
+        omittedDuplicates: unchangedVehicles + preview.summary.duplicateInternal,
         duplicateInternal: preview.summary.duplicateInternal,
         warnings: preview.summary.warnings,
         totalRows: preview.summary.totalRows,
@@ -621,7 +766,7 @@ export async function confirmImportPreview(previewId: string, ownerUsername: str
                 ? "La vista previa contiene errores estructurales o de integridad que bloquean la importación. Corrija el archivo y vuelva a validarlo."
                 : storedPreview.preview.summary.validRows === 0
                     ? "El archivo no contiene filas válidas para importar despues de aplicar validaciones por fila."
-                    : "El archivo fue validado, pero no contiene registros nuevos para importar.",
+                    : "El archivo fue validado, pero no contiene registros nuevos ni cambios para actualizar.",
             storedPreview.id,
         );
     }

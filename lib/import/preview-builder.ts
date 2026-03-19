@@ -2,7 +2,13 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/prisma";
 
-import { normalizeEmpresa, normalizePatente, normalizeText } from "@/lib/import/normalizers";
+import {
+    normalizeEmpresa,
+    normalizeNumeroInterno,
+    normalizePatente,
+    normalizeText,
+    normalizeTipoVehiculo,
+} from "@/lib/import/normalizers";
 import type {
     ImportDuplicateItem,
     ImportIssue,
@@ -21,11 +27,40 @@ type ExistingContratistaLookupRecord = {
 type ExistingVehicleRecord = {
     id: number;
     licensePlate: string;
+    codigoInterno: string;
+    vehicleType: string;
     company: string;
+    contratistaId: number | null;
     contratista: {
+        id: number;
         razonSocial: string;
     } | null;
 };
+
+function getExistingVehicleCompanyReference(vehicle: ExistingVehicleRecord) {
+    return vehicle.contratista?.razonSocial ?? vehicle.company;
+}
+
+function resolveVehicleUpdateFields(
+    vehicle: ExistingVehicleRecord,
+    row: ParsedExcelImportRow,
+): Array<"numeroInterno" | "empresa" | "tipoVehiculo"> {
+    const updateFields: Array<"numeroInterno" | "empresa" | "tipoVehiculo"> = [];
+
+    if (normalizeNumeroInterno(vehicle.codigoInterno) !== row.numeroInterno) {
+        updateFields.push("numeroInterno");
+    }
+
+    if (normalizeTipoVehiculo(vehicle.vehicleType) !== row.tipoVehiculo) {
+        updateFields.push("tipoVehiculo");
+    }
+
+    if (normalizeEmpresa(getExistingVehicleCompanyReference(vehicle)) !== row.empresaKey) {
+        updateFields.push("empresa");
+    }
+
+    return updateFields;
+}
 
 function sortIssues(left: ImportIssue, right: ImportIssue) {
     if (left.severity !== right.severity) {
@@ -100,9 +135,13 @@ async function loadExistingVehicleRecordsByNormalizedPlates(normalizedPlates: st
             select: {
                 id: true,
                 licensePlate: true,
+                codigoInterno: true,
+                vehicleType: true,
                 company: true,
+                contratistaId: true,
                 contratista: {
                     select: {
+                        id: true,
                         razonSocial: true,
                     },
                 },
@@ -276,22 +315,15 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
     const vehicleItems = importRows
         .map((row) => {
             const existingVehicle = existingVehicleLookup.get(row.patente) ?? null;
-            const existingCompanyReference = existingVehicle?.contratista?.razonSocial ?? existingVehicle?.company ?? null;
             const patenteFueNormalizada = row.patenteFueNormalizada ?? (Boolean(row.patenteOriginal) && normalizeText(row.patenteOriginal) !== row.patente);
-            const companyMismatch = Boolean(
-                existingCompanyReference
-                && normalizeEmpresa(existingCompanyReference) !== row.empresaKey,
-            );
-
-            if (existingVehicle && companyMismatch) {
-                issues.push(createImportIssue({
-                    code: "existing-vehicle-company-mismatch",
-                    severity: "warning",
-                    field: "Empresa",
-                    rowNumber: row.__row,
-                    message: `La patente ${row.patente} ya existe en base de datos con otra empresa. Se marcará como existente y no se actualizará.`,
-                }));
-            }
+            const updateFields = existingVehicle
+                ? resolveVehicleUpdateFields(existingVehicle, row)
+                : [];
+            const status: "new" | "updatable" | "existing" = existingVehicle
+                ? updateFields.length > 0
+                    ? "updatable"
+                    : "existing"
+                : "new";
 
             return {
                 patente: row.patente,
@@ -301,9 +333,9 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
                 numeroInterno: row.numeroInterno,
                 tipoVehiculo: row.tipoVehiculo,
                 rowNumber: row.__row,
-                status: existingVehicle ? "existing" as const : "new" as const,
+                status,
                 vehicleId: existingVehicle?.id ?? null,
-                companyMismatch,
+                updateFields,
                 companyActual: existingVehicle?.company ?? null,
                 contratistaActual: existingVehicle?.contratista?.razonSocial ?? null,
             };
@@ -317,7 +349,7 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
     ) {
         issues.push(createImportIssue({
             code: "no-importable-rows",
-            severity: "critical",
+            severity: "warning",
             field: "Importación",
             message: "No se encontraron filas válidas para importar despues de aplicar validaciones por fila y duplicados internos.",
         }));
@@ -326,6 +358,7 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
     const contractorNewItems = contractorItems.filter((item) => item.status === "new");
     const contractorExistingItems = contractorItems.filter((item) => item.status === "existing");
     const vehicleNewItems = vehicleItems.filter((item) => item.status === "new");
+    const vehicleUpdatableItems = vehicleItems.filter((item) => item.status === "updatable");
     const vehicleExistingItems = vehicleItems.filter((item) => item.status === "existing");
     const globalCriticalErrors = issues.filter(
         (issue) => issue.severity === "critical" && typeof issue.rowNumber !== "number",
@@ -337,14 +370,14 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
     ).size;
     const canImport = globalCriticalErrors === 0
         && importRows.length > 0
-        && (contractorNewItems.length > 0 || vehicleNewItems.length > 0);
+        && (contractorNewItems.length > 0 || vehicleNewItems.length > 0 || vehicleUpdatableItems.length > 0);
 
     if (!canImport && globalCriticalErrors === 0 && importRows.length > 0) {
         issues.push(createImportIssue({
             code: "nothing-to-import",
             severity: "warning",
             field: "Importación",
-            message: "El archivo fue validado, pero no contiene contratistas o vehículos nuevos para insertar.",
+            message: "El archivo fue validado, pero no contiene registros nuevos ni cambios para actualizar.",
         }));
     }
 
@@ -360,6 +393,7 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
             newContractors: contractorNewItems.length,
             existingContractors: contractorExistingItems.length,
             newVehicles: vehicleNewItems.length,
+            updatableVehicles: vehicleUpdatableItems.length,
             existingVehicles: vehicleExistingItems.length,
             duplicateInternal: duplicates.filter((duplicate) => !duplicate.critical).length,
             warnings: issues.filter((issue) => issue.severity === "warning").length,
@@ -376,6 +410,7 @@ export async function buildImportPreview(parsed: ParsedExcelImport): Promise<Imp
         },
         vehicles: {
             newItems: vehicleNewItems,
+            updatableItems: vehicleUpdatableItems,
             existingItems: vehicleExistingItems,
         },
         importRows,
