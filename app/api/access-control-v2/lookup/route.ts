@@ -23,6 +23,7 @@ export async function POST(request: Request) {
                 licensePlate?: string;
             }
             | null;
+
         const licensePlate = normalizeLicensePlate(body?.licensePlate ?? "");
 
         if (!licensePlate) {
@@ -36,11 +37,20 @@ export async function POST(request: Request) {
         const vehicle = lookup.vehicle;
 
         if (!vehicle) {
-            accessLookupDebugLog(
-                "lookup-route",
-                "No se encontró vehículo en la estructura real esperada por Prisma.",
-                await getVehicleLookupDiagnostics(licensePlate),
-            );
+            try {
+                const diagnostics = await getVehicleLookupDiagnostics(licensePlate);
+
+                accessLookupDebugLog(
+                    "lookup-route",
+                    "No se encontró vehículo en la estructura real esperada por Prisma.",
+                    diagnostics,
+                );
+            } catch (diagnosticError) {
+                console.error(
+                    "[access-control-v2/lookup] Fallaron los diagnósticos de patente",
+                    diagnosticError,
+                );
+            }
 
             return NextResponse.json(
                 { error: "No se encontró un vehículo con esa patente." },
@@ -77,19 +87,19 @@ export async function POST(request: Request) {
                 contratista: vehicle.contratista,
                 ultimoEvento: lastEvent
                     ? {
-                        tipoEvento: lastEvent.tipoEvento,
-                        fechaHora: lastEvent.fechaHora,
-                        operadoPorUsername: lastEvent.operadoPorUsername,
-                        operadoPorRole: lastEvent.operadoPorRole,
-                        operadoPorPorteriaNombre: lastEvent.operadoPorPorteriaNombre
-                            ? getOperationalPorteriaName(lastEvent.operadoPorPorteriaNombre)
-                            : null,
-                        porteria: {
-                            ...lastEvent.porteria,
-                            nombre: getOperationalPorteriaName(lastEvent.porteria),
-                        },
-                        observacion: lastEvent.observacion,
-                    }
+                          tipoEvento: lastEvent.tipoEvento,
+                          fechaHora: lastEvent.fechaHora,
+                          operadoPorUsername: lastEvent.operadoPorUsername,
+                          operadoPorRole: lastEvent.operadoPorRole,
+                          operadoPorPorteriaNombre: lastEvent.operadoPorPorteriaNombre
+                              ? getOperationalPorteriaName(lastEvent.operadoPorPorteriaNombre)
+                              : null,
+                          porteria: {
+                              ...lastEvent.porteria,
+                              nombre: getOperationalPorteriaName(lastEvent.porteria),
+                          },
+                          observacion: lastEvent.observacion,
+                      }
                     : null,
                 movementSummary: {
                     currentCycleType: movementSummary.currentCycleType,
